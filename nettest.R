@@ -1,5 +1,7 @@
-library(bnlearn)
-library(dplyr)
+####
+
+source("packages.R")
+
 
 dag <- empty.graph(nodes = c("A", "S", "E", "O", "R", "T"))
 dag
@@ -170,8 +172,8 @@ dsep(dag, x = "A", y = "S", z = "E")
 
 # true probability:
 
-#gRain::querygrain(bn, event = (S == "M") & (T == "car"),
- #          evidence = (E == "high"))
+gRain::querygrain(bn, event = (S == "M") & (T == "car"),
+           evidence = (E == "high"))
 
 # 5000 * nparam(BN)
 cpquery(bn, event = (S == "M") & (T == "car"),
