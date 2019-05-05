@@ -37,6 +37,10 @@ pacman::p_load(
   plotly,
   bnlearn,
   gRain,
+  rbmn,
+  penalized,
+  corpcor,
+  igraph,
   distrEx,
   statip,
   grid,
@@ -53,4 +57,4 @@ pacman::p_load(
 
 
 #options(scipen = 100)
-options(digits = 2)
+options(digits = 4)
