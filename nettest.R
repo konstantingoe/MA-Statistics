@@ -486,16 +486,107 @@ par(mfrow = c(2, 2), mar = rep(3, 4), cex.main = 2)
 # Actually we can mix discrete and continuous variables and
 # we can use any kind of distribution. 
  
+ library(rjags)
  
+ sp <- c(0.5, 0.5)
+ mu <- c(6.1, 6.25)
+ sigma <- 0.05
+ jags.data <- list(sp = sp, mu = mu, sigma = sigma,
+                   cdiam = 6.20)
+ model1 <- jags.model(file = "inclu.sc.jam", data = jags.data)
+
+ update(model1, n.iter = 10000)
+ simu1 <- coda.samples(model = model1, variable.names = "csup",
+                       n.iter = 20000, thin = 20)
+ sim1 <- simu1[[1]] 
+ sum(sim1 == 1) / length(sim1)
+
+ # quite close to the theoretical value:
+ d.s1 <- dnorm(6.2, mean = mu[1], sd = sigma)
+ d.s2 <- dnorm(6.2, mean = mu[2], sd = sigma)
+ d.s1 / (d.s1 + d.s2)
+
+ # discretizing continuous variables
+ 
+ limits <- c(6.16, 6.19)
+ dsd <- matrix(c(diff(c(0, pnorm(limits, mu[1], sigma), 1)),
+                 diff(c(0, pnorm(limits, mu[2], sigma), 1))),
+                 3, 2)
+ dimnames(dsd) <- list(D = c("thin", "average", "thick"),
+                       S = c("s1", "s2")) 
+ dsd
+
+ #joint distribution by multiplying dsd by the probability of each s (law of total probability)
+ 
+ jointd <- dsd * sp
+# conditional probability of S given D:
+ dds <- t(jointd / rowSums(jointd))
+ dds 
+
+ 
+ ###### Using different distributions than multinomial/multinormal #####
+ 
+ dat0 <- list(p.PR = c(0.7, 0.2, 0.1),
+              a.CL = 3, b.CL = 1,
+              g.G1 = c(1, 3, 10),
+              k.G2 = 10,
+              m.TR = 5, s.TR = 2.5,
+              r.LO = 1/3, d.LO = 1)
+
+ # exploring 
+ 
+ exp.loss <- rep(NA, 3)
+ names(exp.loss) <- paste("PR=", 1:3, sep = "")
+ qua.loss <- exp.loss
+ for (PR in 1:3) {
+    dat1 <- dat0
+    dat1$PR <- PR
+    mopest <- jags.model(file = "inclu.pest.jam", data = dat1,
+                         quiet = TRUE)
+    update(mopest, 3000)
+    sipest <-
+    coda.samples(model = mopest, variable.names = "LO",
+                     n.iter = 50000)
+    summa <- summary(sipest)
+    exp.loss[PR] <- summa$statistics["Mean"]
+    qua.loss[PR] <- summa$quantiles["75%"]
+    }#FOR
+  mean3 <- mean(sipest[[1]][, "LO"])
+  round(c(exp.loss, MEAN = mean(exp.loss)), 1) 
+ 
+
+ ###### Theoretic Motivation #####
   
+X <- paste("[X1][X3][X5][X6|X8][X2|X1][X7|X5][X4|X1:X2]",
+           "[X8|X3:X7][X9|X2:X7][X10|X1:X9]", sep = "")
+dag <- model2network(X)
  
- 
+skel <- skeleton(dag) 
+vstructs(dag) 
+cp1 <- cpdag(dag) 
+dsep(dag, x = "X9", y = "X5", z = c("X2", "X7", "X10"))
+# identify markov blanket nodes
+mb(dag, node = "X9")
+mb(dag, node = "X7")
 
+par.X9 <- bnlearn::parents(dag, node = "X9")
+ch.X9 <- bnlearn::children(dag, node = "X9") 
+sp.X9 <- sapply(ch.X9, bnlearn::parents, x = dag) 
+sp.X9 <- sp.X9[sp.X9 != "X9"]
+unique(c(par.X9, ch.X9, sp.X9))
 
+V <- setdiff(nodes(dag), "X9")
+S <- mb(dag, "X9")
+sapply(setdiff(V, S), dsep, bn = dag, y = "X9", z = S)
 
+V <- setdiff(nodes(dag), "X7")
+S <- mb(dag, "X7")
+sapply(setdiff(V, S), dsep, bn = dag, y = "X7", z = S)
 
-
-
+belongs <- logical(0)
+for (node in S)
+  belongs[node] <- "X7" %in% mb(dag, node)
+belongs
 
 
 

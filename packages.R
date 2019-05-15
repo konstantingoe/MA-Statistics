@@ -39,6 +39,7 @@ pacman::p_load(
   gRain,
   rbmn,
   penalized,
+  rjags,
   corpcor,
   igraph,
   distrEx,
