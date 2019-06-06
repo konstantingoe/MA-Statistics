@@ -589,4 +589,131 @@ for (node in S)
 belongs
 
 
+#### Moral Graphs ####
+
+#Just another graphical representation derived from the DAG
+mg1 <- moral(dag)
+all.equal(moral(dag),
+          moral(set.arc(dag, from = "X7", to = "X3")))
+
+mg2 <- dag
+vs <- vstructs(dag)
+for (i in seq(nrow(vs)))
+   mg2 <- set.edge(mg2, from = vs[i, "X"], to = vs[i, "Y"],
+                   check.cycles = FALSE)
+mg2 <- skeleton(mg2)
+all.equal(mg1, mg2)
+
+#Moralization transforms BN into Markov Network 
+
+###################################
+#                                 #
+#### Bayesan Network Learning #####
+#                                 #
+###################################
+
+
+#Grow Shrink structure learning algorithm 
+
+bn.cor <- gs(cropdata1, test = "cor", alpha = 0.05)
+modelstring(bn.cor)
+#missing the V-N arc; the small sample size seems to reduce the power of the test
+# use Fischer's Z- test
+bn.zf <- gs(cropdata1, test = "zf", alpha = 0.05)
+# or Monte Carlo test
+bn.mc <- gs(cropdata1, test = "mc-cor", B = 1000)
+all.equal(bn.zf,bn.mc)
+all.equal(bn.cor, bn.mc)
+#still not the real structure
+bn.iamb <- iamb(cropdata1, test = "cor", alpha = 0.05)
+all.equal(bn.cor, bn.iamb)
+gs(cropdata1, test = "cor", alpha = 0.05, debug = TRUE)
+
+#include by hand:
+bn.cor <- gs(cropdata1, test = "cor", alpha = 0.05,
+             whitelist = c("V", "N"))
+all.equal(bn.cor, dag.bnlearn)
+
+# Score based algorithms
+
+learned <- hc(survey, score = "bic")
+modelstring(learned)
+score(learned, data = survey, type = "bic")
+
+learned <- hc(survey, score = "bic", debug = T)
+#start search at random graph
+hc(survey, score = "bic", start = random.graph(names(survey)))
+
+# Hybrid algorithms:
+
+# MMHC is implemented in bnlearn in the mmhc function
+mmhc(survey)
+
+rsmax2(survey, restrict = "mmpc", maximize = "hc")
+
+
+#rsmax2(survey, restrict = "si.hiton.pc", test = "x2", 
+#       maximize = "tabu", score = "bde", maximize.args = list(iss = 5))
+#
+
+#-----------------------------------------------------------------------------#
+                    ###### Parameter Learning ######
+#-----------------------------------------------------------------------------#
+
+#probability to find a man driving a car
+#given he has high school education
+
+
+cpquery(bn, event = (S == "M") & (T == "car"),
+        evidence = (E == "high"), n = 10^6)
+
+particles <- rbn(bn, 10^6)
+head(particles, n = 5)
+
+partE <- particles[(particles[, "E"] == "high"), ]
+nE <- nrow(partE)
+
+partEq <-partE[(partE[, "S"] == "M") & (partE[, "T"] == "car"), ]
+nEq <- nrow(partEq)
+nEq/nE
+
+###### Mutilated Networks and likelihood sampling ####
+
+mutbn <- mutilated(bn, list(E = "high"))
+mutbn$E
+particles <- rbn(bn, 10^6)
+partQ <- particles[(particles[, "S"] == "M") &
+                        (particles[, "T"] == "car"), ]
+nQ <- nrow(partQ)
+nQ/10^6
+
+w <- logLik(bn, particles, nodes = "E", by.sample = TRUE)
+wEq <- sum(exp(w[(particles[, "S"] == "M") &
+                  (particles[, "T"] == "car")]))
+wE <- sum(exp(w))
+wEq/wE
+
+# or alternatively:
+
+cpquery(bn, event = (S == "M") & (T == "car"),
+        evidence = list(E = "high"), method = "lw")
+
+
+###### Causal BNs #####
+
+
+data(marks)
+head(marks)
+latent <- factor(c(rep("A", 44), "B",
+                   rep("A", 7), rep("B", 36)))
+modelstring(hc(marks[latent == "A", ]))
+modelstring(hc(marks[latent == "B", ]))
+modelstring(hc(marks))
+
+#discretizing the BN to make it multinomial 
+dmarks <- discretize(marks, breaks = 2, method = "interval")
+
+modelstring(hc(cbind(dmarks, LAT = latent)))
+
+
 
