@@ -50,9 +50,16 @@ pacman::p_load(
   grid,
   scatterplot3d,
   dplyr,
+  plyr,
+  naniar,
   psych,
   Hmisc,
   MASS,
+  Rlab,
+  splines,
+  crs,
+  orthogonalsplinebasis,
+  EQL,
   fitdistrplus,
   reshape2,
   # those beneath always load last
@@ -62,3 +69,5 @@ pacman::p_load(
 
 #options(scipen = 100)
 options(digits = 4)
+
+
