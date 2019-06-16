@@ -36,6 +36,7 @@ pacman::p_load(
   rgl,
   plotly,
   bnlearn,
+  bnstruct,
   rstan,
   bayesplot,
   shinystan,
