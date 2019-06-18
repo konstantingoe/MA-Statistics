@@ -2,6 +2,7 @@
 rm(list = ls())
 source("packages.R")
 source(".path.R")
+source("functions.R")
 mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
 
 ##### Testing MAR for Residence Value ####
@@ -10,15 +11,25 @@ residence <- select(mydata, one_of(c("schicht", "age", "sex", "orbis_wealth", "j
   filter(owner == 1) %>% 
   select(-owner)
 
+business <- select(mydata, one_of(c("schicht", "age", "sex", "orbis_wealth", "jobduration", "wage_gross_m", "wage_net_m", "inherit_filter", "business_holdings_filter", "business_holdings", "business_holdings_limits"))) %>%
+  filter(business_holdings_filter == 1) %>% 
+  select(-business_holdings_filter) %>% 
+  mutate(lnorbis = log(orbis_wealth) - log(mean(orbis_wealth, na.rm = T))) %>% 
+  mutate(lnbusiness = log(business_holdings) - log(mean(business_holdings, na.rm = T)))
+
+            
+            
+            
+            
 visual <- residence %>% 
   filter(inherit_filter ==0) %>% 
   mutate(lnorbis = log(orbis_wealth)) %>% 
   mutate(lnresidence = log(residence_value))
 
-ggscatter(visual, x = "lnorbis", y = "lnresidence",
+ggscatter(business, x = "lnorbis", y = "lnbusiness",
           add = "reg.line", conf.int = TRUE,
           cor.coef = TRUE, cor.method = "pearson",
-          xlab = "Wealth proxy in logs", ylab = "Market value of primary residence in logs")
+          xlab = "Wealth proxy in logs", ylab = "Market value of businessholdings")
 
 ggqqplot(visual$lnorbis, ylab = "Wealth proxy in logs")
 
@@ -26,15 +37,19 @@ ggqqplot(visual$lnorbis, ylab = "Wealth proxy in logs")
 ### for quick check just use listwise deletion except for residence value:
 
 residence.nm <- residence %>% 
-  filter(!is.na(jobduration) & !is.na(residence_value_limits) & !is.na(inherit_filter) & !is.na(wage_gross_m) & !is.na(wage_net_m)) %>% 
+  #filter(!is.na(jobduration) & !is.na(residence_value_limits) & !is.na(inherit_filter) & !is.na(wage_gross_m) & !is.na(wage_net_m)) %>% 
   mutate(lnorbis = log(orbis_wealth) - log(mean(orbis_wealth, na.rm = T))) %>% 
   mutate(lnresidence = log(residence_value)- log(mean(residence_value, na.rm = T))) %>% 
-  mutate(lnwage_g = log(1+wage_gross_m) - log(mean(residence_value, na.rm = T)))
+  mutate(lnwage_g = log(1+wage_gross_m) - log(mean(residence_value, na.rm = T))) %>% 
+  mutate(Y = ifelse(sex==2,NA, lnresidence)) %>% 
+  mutate(jobduration_i = ifelse(is.na(jobduration),median(jobduration), jobduration)) %>% 
+  mutate(lnjobduration = log(jobduration_i) - mean(log(jobduration_i)))
+  
 
 gg_miss_var(residence.nm, show_pct = TRUE)
 
-residence.nm <- residence.nm %>% 
-  slice(1:400)
+#residence.nm <- residence.nm %>% 
+  #slice(1:400)
 ##### testing #####
 ### Things that do not work:
 
@@ -47,40 +62,46 @@ residence.nm <- residence.nm %>%
 # Hard coded critical values... what are the actual ones? also check tomorrow in the paper
 # test <- (Test0 >CC[9500])
 
+X1 <- residence.nm$lnwage_g # can also take vector... normalize by (X'X) though
 
-s.vec = c(-1, -1.5, -2)
+########################
+#### TEST MCAR      #### 
+########################
 
-n <- nrow(residence.nm)
-#N <- 1000
-m <- sqrt(nrow(residence.nm))
+MCAR(data = residence.nm, missvar = "lnresidence", instrument = "lnorbis")
+MCAR(data = business, missvar = "lnbusiness", instrument = "lnorbis")
+
+
+
+
+############################################
+#### TEST MAR: P(D=1|X1,Y^*)=P(D=1|X1)  ###### 
+############################################
+m <- 3 #round(sqrt(nrow(residence.nm)))
 c.eig <-m^2
 
-delta <- ifelse(is.na(residence.nm$residence_value),0,1)
-ones<-rep(1,1,n)
-
-cos.F<-function(x,j){sqrt(2)*cos((j)*pi*x)}
-
-set.seed(73457)
-
-s =s.vec[1]
 Weights= vector()
-for(j in 1:(m^2)) {Weights[j] = j^s}
-  
-W <- residence.nm$lnorbis
-X <- residence.nm$lnwage_g
-Y <- residence.nm$lnresidence
+for(j in 1:(m^2)) Weights[j] = j^s
 
-cv.h <- crs(delta~X, cv="exhaustive",degree.max=3, segments.max = 5, knots="uniform")
+cv.h <- crs(delta~X1, cv="exhaustive", segments.max = 10,degree.max=10, knots="uniform", kernel=FALSE)
+cv.h$K# LM<- lm(delta~X+X6+X7)
+# summary(LM)
 h.hat <- cv.h$fitted.values
-sum((delta-h.hat)^2)
-knots<- expand.knots(seq(min(X),max(X), length=(cv.h$K[2])), order =cv.h$K[1])
-BasX.mat = gsl.bs(X,degree=cv.h$K[1], nbreak=(cv.h$K[2]))
-BasX.mat =cbind(ones,BasX.mat)
 
+
+
+knots<- expand.knots(seq(min(X1),max(X1), length=(cv.h$K[1,2])), order =max(cv.h$K[1,1],2))
+BasX.mat = cbind(1,gsl.bs(X1,degree=max(cv.h$K[1,1],2), nbreak=max(2,cv.h$K[1,2])))
+
+BasX.mat = cbind(1,gsl.bs(X1,degree=max(4,2), nbreak=max(2,cv.h$K[1,2])))
+
+h.hat <- BasX.mat%*%ginv(t(BasX.mat)%*%BasX.mat)%*%t(BasX.mat)%*%delta
 BasWh.mat=mat.or.vec(n,m)
 for(i in 1:m){BasWh.mat[,i] <- hermite(W, i)/sqrt(factorial(i))}
+
 BasXh.mat=mat.or.vec(n,m)
-for(i in 1:m){BasXh.mat[,i] <- hermite(X, i)/sqrt(factorial(i))}
+for(i in 1:m){BasXh.mat[,i] <- hermite(X1, i)/sqrt(factorial(i))}
+
 
 
 BasWf.mat=mat.or.vec(n,m^2)
@@ -88,11 +109,16 @@ BasWf.mat <- mat.or.vec(n,(length(BasWh.mat[1,])*length(BasXh.mat[1,])))
 for( i in 1:n){ BasWf.mat[i,] <- kronecker(BasWh.mat[i,],BasXh.mat[i,])}
 
 
-coef0.vec <- t(BasWf.mat)%*%(delta-h.hat)/n
-Test0 <- n*sum((Weights*coef0.vec) *(Weights*coef0.vec))
+coef0.vec <- t(delta-h.hat)%*%BasWf.mat/n
+coef2.vec <- sort(coef0.vec^2, decreasing = TRUE, index.return=TRUE)
 
-C.mat<-matrix(rnorm(c.eig*10000),c.eig,10000)^2 
-Wf.mat <- BasWf.mat%*%diag(Weights)# 
+BasWf.mat <- BasWf.mat[,coef2.vec$ix]
+coef2.vec <-coef2.vec$x
+
+Test0 <- n*sum(Weights^2*coef2.vec)
+
+C.mat<-matrix(rnorm(c.eig*1000000),c.eig,1000000)^2 
+Wf.mat <- BasWf.mat%*%diag(Weights)
 
 eps.1.mat <- diag(as.vector(delta-h.hat))%*%Wf.mat
 eps.h.mat <- diag(as.vector(delta-h.hat))%*%BasX.mat%*%t(BasX.mat)%*%Wf.mat/n
@@ -100,7 +126,29 @@ eps.mat  <- eps.1.mat - eps.h.mat
 Sigma.mat<-t(eps.mat)%*%eps.mat/n
 eig.vec<-rev(sort(eigen(Sigma.mat, symmetric = TRUE)$values))
 CC<-sort(eig.vec[1:c.eig]%*%C.mat)
-test <- (Test0 >CC[m])
+
+
+Test0
+CC[950000]
+Test0/CC[950000]
+
+
+########################
+#### Little's Test  #### 
+########################
+data.fr <-data.frame(residence.nm$lnresidence,residence.nm$lnorbis)
+LittleMCAR(data.fr)$chi.square
+LittleMCAR(data.fr)$p.value
+LittleMCAR(data.fr)$amount.missing
+# little rejects MCAR for residence
+
+
+data.fr <-data.frame(business$lnbusiness,business$lnorbis)
+LittleMCAR(data.fr)$chi.square
+LittleMCAR(data.fr)$p.value
+LittleMCAR(data.fr)$amount.missing
+# also does not reject for business assets
+
 
 
 
