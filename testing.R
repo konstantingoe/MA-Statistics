@@ -7,7 +7,7 @@ mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
 
 ##### Testing MAR for Residence Value ####
 
-residence <- select(mydata, one_of(c("schicht", "age", "sex", "orbis_wealth", "jobduration", "wage_gross_m", "wage_net_m", "inherit_filter", "owner", "residence_value", "residence_value_limits"))) %>% 
+residence <- select(mydata, one_of(c("schicht", "age", "sex", "orbis_wealth", "jobduration", "wage_gross_m", "wage_net_m", "inherit_filter", "owner", "residence_value", "residence_value_limits", "sqmtrs", "total_inheritance"))) %>% 
   filter(owner == 1) %>% 
   select(-owner)
 
@@ -43,7 +43,8 @@ residence.nm <- residence %>%
   mutate(lnwage_g = log(1+wage_gross_m) - log(mean(residence_value, na.rm = T))) %>% 
   mutate(Y = ifelse(sex==2,NA, lnresidence)) %>% 
   mutate(jobduration_i = ifelse(is.na(jobduration),median(jobduration), jobduration)) %>% 
-  mutate(lnjobduration = log(jobduration_i) - mean(log(jobduration_i)))
+  mutate(lnjobduration = log(jobduration_i) - mean(log(jobduration_i))) %>% 
+  mutate(lnsqmtrs = log(sqmtrs) - log(mean(sqmtrs, na.rm = T)))
   
 
 gg_miss_var(residence.nm, show_pct = TRUE)
@@ -68,8 +69,11 @@ X1 <- residence.nm$lnwage_g # can also take vector... normalize by (X'X) though
 #### TEST MCAR      #### 
 ########################
 
-MCAR(data = residence.nm, missvar = "lnresidence", instrument = "lnorbis")
-MCAR(data = business, missvar = "lnbusiness", instrument = "lnorbis")
+
+MCAR(data = filter(residence.nm, !is.na(lnsqmtrs)), missvar = "residence_value", instrument = "lnsqmtrs")
+
+MCAR(data = business, missvar = "lnbusiness", instrument = "lnorbis", orthonormal.basis = "cosine")
+
 
 
 

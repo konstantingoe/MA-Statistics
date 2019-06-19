@@ -1,6 +1,7 @@
 ##### Functions #####
 
-MCAR <- function(data = data, missvar = "missvar", instrument = "instrument") {
+MCAR <- function(data = data, missvar = "missvar", instrument = "instrument", orthonormal.basis  = NULL, m = round(sqrt(n))
+) {
   
   if (sum(is.na(data[,instrument])) > 0) {
     print("Stop, instrument should not have missing values")
@@ -9,16 +10,21 @@ MCAR <- function(data = data, missvar = "missvar", instrument = "instrument") {
     n <- length(data[,instrument])
     W <- data[,instrument]
     Y <- data[,missvar]
-    m <- round(sqrt(n))
+    m <- m
     c.eig <-m
     
     delta <- ifelse(is.na(data[,missvar]),0,1)
     Weights= vector()
     for(j in 1:m) Weights[j] = j^s
     
+    cos.F<-function(x,j){sqrt(2)*cos((j)*pi*x)}
     
     h.hat <- sum(delta/n) 
-    b.fct <- function(i){hermite(W, i)/sqrt(factorial(i))}
+    if (orthonormal.basis == "cosine"){
+      b.fct <- function(i){cos.F(W, i)/sqrt(factorial(i))}
+    } else {
+      b.fct <- function(i){hermite(W, i)/sqrt(factorial(i))}
+    }
     BasWf.mat<-matrix(unlist(mclapply(1:m, b.fct, mc.cores = detectCores() -1)), n, m)
     
     coef0.vec <- t(delta-h.hat)%*%BasWf.mat/n

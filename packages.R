@@ -60,6 +60,7 @@ pacman::p_load(
   naniar,
   psych,
   Hmisc,
+  sem,
   MASS,
   Rlab,
   splines,
