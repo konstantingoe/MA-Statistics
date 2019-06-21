@@ -3,157 +3,119 @@ rm(list = ls())
 source("packages.R")
 source(".path.R")
 source("functions.R")
-mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
+mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/")) %>% 
+  mutate(female = sex -1) %>% 
+  mutate(married = ifelse(famstd==2,1,ifelse(is.na(famstd), NA, 0)))
 
-##### Testing MAR for Residence Value ####
 
-residence <- select(mydata, one_of(c("schicht", "age", "sex", "orbis_wealth", "jobduration", "wage_gross_m", "wage_net_m", "inherit_filter", "owner", "residence_value", "residence_value_limits", "sqmtrs", "total_inheritance"))) %>% 
-  filter(owner == 1) %>% 
-  select(-owner)
+#### summary table for presentation #####
 
-business <- select(mydata, one_of(c("schicht", "age", "sex", "orbis_wealth", "jobduration", "wage_gross_m", "wage_net_m", "inherit_filter", "business_holdings_filter", "business_holdings", "business_holdings_limits"))) %>%
-  filter(business_holdings_filter == 1) %>% 
-  select(-business_holdings_filter) %>% 
-  mutate(lnorbis = log(orbis_wealth) - log(mean(orbis_wealth, na.rm = T))) %>% 
-  mutate(lnbusiness = log(business_holdings) - log(mean(business_holdings, na.rm = T)))
+presentation <- select(mydata, "age", "female", "citizen" , "married", "bwest", "kidsu16", "saving_value",
+                       "hhnetto", "wage_gross_m", "unempl", "jobduration", "selfempl", "inherit_filter", "total_inheritance")
 
-            
-            
-            
-            
-visual <- residence %>% 
-  filter(inherit_filter ==0) %>% 
-  mutate(lnorbis = log(orbis_wealth)) %>% 
-  mutate(lnresidence = log(residence_value))
+stargazer(presentation, out = "summarystat.tex" ,title = "Summary Table: High Wealth Dataset", summary = T, notes = "SOEPv36 - TopW Data; Author's calculations", summary.stat = c("n", "mean", "median", "sd", "min", "max"))
 
-ggscatter(business, x = "lnorbis", y = "lnbusiness",
+##### Testing MCAR for wealth assets Values ####
+range01 <- function(x, ...){(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
+
+mydata <- mydata %>% 
+  mutate(lnorbis         = log(orbis_wealth) - log(mean(orbis_wealth, na.rm = T))) %>%
+  mutate(orbisscale      = range01(log(orbis_wealth), na.rm = T)) %>%
+  mutate(lnwage_g        = log(1+wage_gross_m) - log(mean(wage_gross_m, na.rm = T))) %>% 
+  mutate(jobduration_i   = ifelse(is.na(jobduration),median(jobduration), jobduration)) %>% 
+  mutate(lnjobduration   = log(jobduration_i) - mean(log(jobduration_i))) %>% 
+  mutate(lnsqmtrs        = log(sqmtrs) - log(mean(sqmtrs, na.rm = T))) %>% 
+  mutate(lnresidence     = log(residence_value)- log(mean(residence_value, na.rm = T))) %>% 
+  mutate(lnestate        = log(other_estate_value)- log(mean(other_estate_value, na.rm = T))) %>% 
+  mutate(lnassets        = log(assets) - log(mean(assets, na.rm = T))) %>% 
+  mutate(lnbuilding      = log(building_contract) - log(mean(building_contract, na.rm = T))) %>% 
+  mutate(lnlife          = log(life_insure) - log(mean(life_insure, na.rm = T))) %>% 
+  mutate(business_holdings = ifelse(business_holdings==0, 1,business_holdings)) %>% 
+  mutate(lnbusiness      = log(business_holdings) - log(mean(business_holdings, na.rm = T))) %>% 
+  mutate(lnvehicles      = log(vehicles) - log(mean(vehicles, na.rm = T))) %>% 
+  mutate(lnresidencedebt = log(residence_debt)- log(mean(residence_debt, na.rm = T))) %>% 
+  mutate(lnestatedebt   = log(other_estate_debt)- log(mean(other_estate_debt, na.rm = T))) %>% 
+  mutate(lnconsumerdebt  = log(consumer_debt)- log(mean(consumer_debt, na.rm = T))) %>% 
+  mutate(lneducationdebt = log(education_debt)- log(mean(education_debt, na.rm = T))) %>% 
+  mutate(sqmtrs = ifelse(is.na(sqmtrs),median(sqmtrs, na.rm=T),sqmtrs)) %>% 
+  mutate(lnsqrmtrs = log(sqmtrs) - mean(log(sqmtrs))) %>%
+  mutate(sqmtrscaled = range01(log(sqmtrs)))
+
+
+# quick correlation check:
+ggscatter(filter(mydata, owner == 1), x = "orbisscale", y = "lnresidence",
           add = "reg.line", conf.int = TRUE,
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "Wealth proxy in logs", ylab = "Market value of businessholdings")
 
-ggqqplot(visual$lnorbis, ylab = "Wealth proxy in logs")
+#ggqqplot(visual$lnorbis, ylab = "Wealth proxy in logs")
 
+gg_miss_var(filter(mydata, tangibles_filter == 1), show_pct = TRUE)
 
-### for quick check just use listwise deletion except for residence value:
-
-residence.nm <- residence %>% 
-  #filter(!is.na(jobduration) & !is.na(residence_value_limits) & !is.na(inherit_filter) & !is.na(wage_gross_m) & !is.na(wage_net_m)) %>% 
-  mutate(lnorbis = log(orbis_wealth) - log(mean(orbis_wealth, na.rm = T))) %>% 
-  mutate(lnresidence = log(residence_value)- log(mean(residence_value, na.rm = T))) %>% 
-  mutate(lnwage_g = log(1+wage_gross_m) - log(mean(residence_value, na.rm = T))) %>% 
-  mutate(Y = ifelse(sex==2,NA, lnresidence)) %>% 
-  mutate(jobduration_i = ifelse(is.na(jobduration),median(jobduration), jobduration)) %>% 
-  mutate(lnjobduration = log(jobduration_i) - mean(log(jobduration_i))) %>% 
-  mutate(lnsqmtrs = log(sqmtrs) - log(mean(sqmtrs, na.rm = T)))
-  
-
-gg_miss_var(residence.nm, show_pct = TRUE)
-
-#residence.nm <- residence.nm %>% 
-  #slice(1:400)
-##### testing #####
-### Things that do not work:
-
-# Do I have to have square numbers as number of observations?
-# Because otherwise Kronecker's product would give me a different number than n
-
-# C.mat how do I know the C.mat value...
-
-# What if Test0 gives me a value of Infinity?
-# Hard coded critical values... what are the actual ones? also check tomorrow in the paper
-# test <- (Test0 >CC[9500])
-
-X1 <- residence.nm$lnwage_g # can also take vector... normalize by (X'X) though
+#X1 <- residence.nm$lnwage_g # can also take vector... normalize by (X'X) though
 
 ########################
 #### TEST MCAR      #### 
 ########################
+### set of filters:   
+
+#### assets:
+
+#  filter(owner == 1) 
+#  filter(other_estate == 1) 
+#  filter(assets_filter == 1) 
+#  filter(building_contract_filter == 1)
+#  filter(life_insure_filter == 1) 
+#  filter(business_holdings_filter == 1) 
+#  filter(vehicles_filter == 1) 
+#  filter(tangibles_filter == 1) 
+
+#### liabilities:
+
+### set of filters:   
+#  filter(residence_debt_filter == 1) 
+#  filter(other_estate_debt_filter == 1) 
+#  filter(consumer_debt_filter == 1) 
+#  filter(education_debt_filter == 1) 
+
+conditions <- c("owner", "other_estate", "assets_filter", "building_contract_filter",
+                "life_insure_filter", "business_holdings_filter", "vehicles_filter", "tangibles_filter",
+                "residence_debt_filter", "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter")
+vars <- c("lnresidence", "lnestate", "lnassets", "lnbuilding", "lnlife", "lnbusiness", "lnvehicles", "lntangibles",
+          "lnresidencedebt", "lnestatedebt", "lnconsumerdebt", "lneducationdebt")
+
+# test names 
+test.names <- c("Residence MV", "Other Estate MV", "Assets MV", "Build. Loan Contr.",
+                "Life Insurance", "Company Shares", "Vehicles MV", "Tangibles",
+                "Residence Debt", "Estate Debt", "Consumer Debt", "Study Loan")
+
+test1 <- sapply(seq_along(conditions), 
+                function(p) MCAR(data = filter(mydata, .data[[conditions[[p]]]] == 1), missvar = vars[p], instrument = "orbisscale", orthonormal.basis = "cosine")$Ratio)
+test2 <- sapply(seq_along(conditions), 
+                function(p) MCAR(data = filter(mydata, .data[[conditions[[p]]]] == 1), missvar = vars[p], instrument = "lnorbis")$Ratio)
+
+########################
+#### Little's Test  #### 
+########################
+
+test3 <- sapply(seq_along(conditions), 
+                function(p) LittleMCAR(data.frame(filter(mydata, .data[[conditions[[p]]]] == 1)[,vars[p]], filter(mydata, .data[[conditions[[p]]]] == 1)$lnorbis))$chi.square / qchisq(.95, 1))
 
 
-MCAR(data = filter(residence.nm, !is.na(lnsqmtrs)), missvar = "residence_value", instrument = "lnsqmtrs")
+test.mat = cbind(test1, test2, test3)
 
-MCAR(data = business, missvar = "lnbusiness", instrument = "lnorbis", orthonormal.basis = "cosine")
+colnames(test.mat) <- c("MCAR Test (Cosine)", "MCAR Test (Hermite)", "Little's Test")
+rownames(test.mat) <- test.names
+test.mat
 
-
-
+stargazer(test.mat, out = "mcar.tex", summary = F, digits = 3, notes = "SOEPv36 - TopW Data; Given is the ratio between test statistic and critical value")
 
 
 ############################################
 #### TEST MAR: P(D=1|X1,Y^*)=P(D=1|X1)  ###### 
 ############################################
-m <- 3 #round(sqrt(nrow(residence.nm)))
-c.eig <-m^2
 
-Weights= vector()
-for(j in 1:(m^2)) Weights[j] = j^s
-
-cv.h <- crs(delta~X1, cv="exhaustive", segments.max = 10,degree.max=10, knots="uniform", kernel=FALSE)
-cv.h$K# LM<- lm(delta~X+X6+X7)
-# summary(LM)
-h.hat <- cv.h$fitted.values
-
-
-
-knots<- expand.knots(seq(min(X1),max(X1), length=(cv.h$K[1,2])), order =max(cv.h$K[1,1],2))
-BasX.mat = cbind(1,gsl.bs(X1,degree=max(cv.h$K[1,1],2), nbreak=max(2,cv.h$K[1,2])))
-
-BasX.mat = cbind(1,gsl.bs(X1,degree=max(4,2), nbreak=max(2,cv.h$K[1,2])))
-
-h.hat <- BasX.mat%*%ginv(t(BasX.mat)%*%BasX.mat)%*%t(BasX.mat)%*%delta
-BasWh.mat=mat.or.vec(n,m)
-for(i in 1:m){BasWh.mat[,i] <- hermite(W, i)/sqrt(factorial(i))}
-
-BasXh.mat=mat.or.vec(n,m)
-for(i in 1:m){BasXh.mat[,i] <- hermite(X1, i)/sqrt(factorial(i))}
-
-
-
-BasWf.mat=mat.or.vec(n,m^2)
-BasWf.mat <- mat.or.vec(n,(length(BasWh.mat[1,])*length(BasXh.mat[1,])))
-for( i in 1:n){ BasWf.mat[i,] <- kronecker(BasWh.mat[i,],BasXh.mat[i,])}
-
-
-coef0.vec <- t(delta-h.hat)%*%BasWf.mat/n
-coef2.vec <- sort(coef0.vec^2, decreasing = TRUE, index.return=TRUE)
-
-BasWf.mat <- BasWf.mat[,coef2.vec$ix]
-coef2.vec <-coef2.vec$x
-
-Test0 <- n*sum(Weights^2*coef2.vec)
-
-C.mat<-matrix(rnorm(c.eig*1000000),c.eig,1000000)^2 
-Wf.mat <- BasWf.mat%*%diag(Weights)
-
-eps.1.mat <- diag(as.vector(delta-h.hat))%*%Wf.mat
-eps.h.mat <- diag(as.vector(delta-h.hat))%*%BasX.mat%*%t(BasX.mat)%*%Wf.mat/n
-eps.mat  <- eps.1.mat - eps.h.mat
-Sigma.mat<-t(eps.mat)%*%eps.mat/n
-eig.vec<-rev(sort(eigen(Sigma.mat, symmetric = TRUE)$values))
-CC<-sort(eig.vec[1:c.eig]%*%C.mat)
-
-
-Test0
-CC[950000]
-Test0/CC[950000]
-
-
-########################
-#### Little's Test  #### 
-########################
-data.fr <-data.frame(residence.nm$lnresidence,residence.nm$lnorbis)
-LittleMCAR(data.fr)$chi.square
-LittleMCAR(data.fr)$p.value
-LittleMCAR(data.fr)$amount.missing
-# little rejects MCAR for residence
-
-
-data.fr <-data.frame(business$lnbusiness,business$lnorbis)
-LittleMCAR(data.fr)$chi.square
-LittleMCAR(data.fr)$p.value
-LittleMCAR(data.fr)$amount.missing
-# also does not reject for business assets
-
-
+MAR(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "lnorbis", controls = "sex")
 
 
 
