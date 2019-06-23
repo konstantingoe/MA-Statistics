@@ -11,9 +11,17 @@ mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/")) %>%
 #### summary table for presentation #####
 
 presentation <- select(mydata, "age", "female", "citizen" , "married", "bwest", "kidsu16", "saving_value",
-                       "hhnetto", "wage_gross_m", "unempl", "jobduration", "selfempl", "inherit_filter", "total_inheritance")
-
+                       "hhnetto", "wage_gross_m", "employed", "jobduration", "selfempl", "inherit_filter", "total_inheritance")
+names(presentation) <- c("Age", "Female", "German citizen", "Married", "Born west", "Kids < 16", "Monthly savings", "Monthly HHnetto income", "Monthly gross wage", "Employed", "Duration in current Job", "Self-Employed","Ever inherited", "Total inheritance")
 stargazer(presentation, out = "summarystat.tex" ,title = "Summary Table: High Wealth Dataset", summary = T, notes = "SOEPv36 - TopW Data; Author's calculations", summary.stat = c("n", "mean", "median", "sd", "min", "max"))
+
+
+presentation2 <- select(mydata, "orbis_wealth", "residence_value", "other_estate_value", "assets", "building_contract", "life_insure", "business_holdings", "vehicles", "tangibles", "residence_debt", "other_estate_debt", "consumer_debt", "education_debt") %>% 
+  mutate(orbis_wealth = orbis_wealth * 1000)
+names(presentation2) <- c("Total shareholdings (Orbis)", "MV primary residence", "MV other estates", "Financial Assets", "Building loan contract", "Life insurance", "Company shares", "Vehicle value", "Tangibles value", "Debt primary residene", "Debt other estates", "Consumer debt", "Student loans")
+stargazer(presentation2, out = "summarystat2.tex" ,title = "Summary Table: High Wealth Dataset", summary = T, notes = "SOEPv36 - TopW Data; Author's calculations", summary.stat = c("n", "mean", "median", "sd", "min", "max"), digits = 0)
+
+
 
 ##### Testing MCAR for wealth assets Values ####
 range01 <- function(x, ...){(x - min(x, ...)) / (max(x, ...) - min(x, ...))}
@@ -33,14 +41,14 @@ mydata <- mydata %>%
   mutate(business_holdings = ifelse(business_holdings==0, 1,business_holdings)) %>% 
   mutate(lnbusiness      = log(business_holdings) - log(mean(business_holdings, na.rm = T))) %>% 
   mutate(lnvehicles      = log(vehicles) - log(mean(vehicles, na.rm = T))) %>% 
+  mutate(lntangibles     = log(tangibles) - log(mean(tangibles, na.rm = T))) %>% 
   mutate(lnresidencedebt = log(residence_debt)- log(mean(residence_debt, na.rm = T))) %>% 
-  mutate(lnestatedebt   = log(other_estate_debt)- log(mean(other_estate_debt, na.rm = T))) %>% 
+  mutate(lnestatedebt    = log(other_estate_debt)- log(mean(other_estate_debt, na.rm = T))) %>% 
   mutate(lnconsumerdebt  = log(consumer_debt)- log(mean(consumer_debt, na.rm = T))) %>% 
   mutate(lneducationdebt = log(education_debt)- log(mean(education_debt, na.rm = T))) %>% 
   mutate(sqmtrs = ifelse(is.na(sqmtrs),median(sqmtrs, na.rm=T),sqmtrs)) %>% 
   mutate(lnsqrmtrs = log(sqmtrs) - mean(log(sqmtrs))) %>%
   mutate(sqmtrscaled = range01(log(sqmtrs)))
-
 
 # quick correlation check:
 ggscatter(filter(mydata, owner == 1), x = "orbisscale", y = "lnresidence",
@@ -49,6 +57,7 @@ ggscatter(filter(mydata, owner == 1), x = "orbisscale", y = "lnresidence",
           xlab = "Wealth proxy in logs", ylab = "Market value of businessholdings")
 
 #ggqqplot(visual$lnorbis, ylab = "Wealth proxy in logs")
+
 
 gg_miss_var(filter(mydata, tangibles_filter == 1), show_pct = TRUE)
 
@@ -102,9 +111,13 @@ test3 <- sapply(seq_along(conditions),
                 function(p) LittleMCAR(data.frame(filter(mydata, .data[[conditions[[p]]]] == 1)[,vars[p]], filter(mydata, .data[[conditions[[p]]]] == 1)$lnorbis))$chi.square / qchisq(.95, 1))
 
 
-test.mat = cbind(test1, test2, test3)
+test4 <- sapply(seq_along(conditions), 
+                function(p) boot::corr(select(filter(mydata, .data[[conditions[[p]]]] == 1 & !is.na(.data[[vars[[p]]]])), one_of("lnorbis", vars[p]))))
 
-colnames(test.mat) <- c("MCAR Test (Cosine)", "MCAR Test (Hermite)", "Little's Test")
+
+test.mat = cbind(test1, test2, test3, test4)
+
+colnames(test.mat) <- c("MCAR Test (Cosine)", "MCAR Test (Hermite)", "Little's Test", "Correlation")
 rownames(test.mat) <- test.names
 test.mat
 

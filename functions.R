@@ -25,7 +25,7 @@ MCAR <- function(data = data, missvar = "missvar", instrument = "instrument", or
     h.hat <- sum(delta/n) 
     if (orthonormal.basis == "cosine"){
       if (max(W) > 1 | min(W) < 0) {
-        print("Stop, cosine basis function only takes values in [0,1]")
+        stop("Stop, cosine basis function only takes values in [0,1]")
       } else {
       b.fct <- function(i){cos.F(W, i)/sqrt(factorial(i))}
       }
@@ -114,7 +114,7 @@ MAR <- function(data = data, missvar = "missvar", instrument = "instrument", con
         
         
         knots<- expand.knots(seq(min(X),max(X), length=(cv.h$K[1,2])), order =max(cv.h$K[1,1],2))
-        BasX.mat = cbind(1,gsl.bs(X,degree=max(cv.h$K[1,1],2), nbreak=max(2,cv.h$K[1,2])))
+        #BasX.mat = cbind(1,gsl.bs(X,degree=max(cv.h$K[1,1],2), nbreak=max(2,cv.h$K[1,2])))
         
         BasX.mat = cbind(1,gsl.bs(X,degree=max(4,2), nbreak=max(2,cv.h$K[1,2])))
         
