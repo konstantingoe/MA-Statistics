@@ -46,9 +46,20 @@ mydata <- mydata %>%
   mutate(lnestatedebt    = log(other_estate_debt)- log(mean(other_estate_debt, na.rm = T))) %>% 
   mutate(lnconsumerdebt  = log(consumer_debt)- log(mean(consumer_debt, na.rm = T))) %>% 
   mutate(lneducationdebt = log(education_debt)- log(mean(education_debt, na.rm = T))) %>% 
-  mutate(sqmtrs = ifelse(is.na(sqmtrs),median(sqmtrs, na.rm=T),sqmtrs)) %>% 
-  mutate(lnsqrmtrs = log(sqmtrs) - mean(log(sqmtrs))) %>%
-  mutate(sqmtrscaled = range01(log(sqmtrs)))
+  mutate(sqmtrs          = ifelse(is.na(sqmtrs),median(sqmtrs, na.rm=T),sqmtrs)) %>% 
+  mutate(lnsqrmtrs       = log(sqmtrs) - mean(log(sqmtrs))) %>%
+  mutate(sqmtrscaled     = range01(log(sqmtrs))) %>% 
+  mutate(saving_value    = ifelse(is.na(saving_value), mean(saving_value, na.rm=T),saving_value)) %>% 
+  mutate(lnsaving        = log(1+saving_value) - mean(log(1+saving_value))) %>%
+  mutate(savingscaled    = range01(log(1+saving_value))) %>% 
+  mutate(hhnetto         = ifelse(is.na(hhnetto), mean(hhnetto, na.rm=T),hhnetto)) %>% 
+  mutate(lnhhnetto       = log(1+hhnetto) - mean(log(1+hhnetto))) %>%
+  mutate(hhnettoscaled   = range01(log(1+hhnetto))) %>% 
+  mutate(total_inheritance = ifelse(is.na(total_inheritance), mean(total_inheritance, na.rm=T),total_inheritance)) %>% 
+  mutate(lninheritance   = log(1+total_inheritance) - mean(log(1+total_inheritance))) %>%
+  mutate(inheritscale    = range01(log(1+total_inheritance)))
+
+
 
 # quick correlation check:
 ggscatter(filter(mydata, owner == 1), x = "orbisscale", y = "lnresidence",
@@ -128,11 +139,23 @@ stargazer(test.mat, out = "mcar.tex", summary = F, digits = 3, notes = "SOEPv36 
 #### TEST MAR: P(D=1|X1,Y^*)=P(D=1|X1)  ###### 
 ############################################
 
-MAR(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "lnorbis", controls = "sex")
+mar.mat <- matrix(ncol=2, nrow=3)
 
+mar.mat[1,1] <- MAR(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "orbisscale", controls = "inheritscale", orthonormal.basis = "cosine")$Ratio
+mar.mat[1,2] <- MAR(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "lnorbis", controls = "lninheritance")$Ratio
 
+mar.mat[2,1] <- MAR(data = filter(mydata, life_insure_filter == 1), missvar = "lnlife", instrument = "orbisscale", controls = "savingscaled", orthonormal.basis = "cosine")$Ratio
+mar.mat[2,2] <- MAR(data = filter(mydata, life_insure_filter == 1), missvar = "lnlife", instrument = "lnorbis", controls = "lnsaving")$Ratio
 
-# function to set missing values:  datami <- prodNA(data, noNA = 0.1)
+mar.mat[3,1] <- MAR(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "orbisscale", controls = "hhnettoscaled", orthonormal.basis = "cosine")$Ratio
+mar.mat[3,2] <- MAR(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "lnorbis", controls = "lnhhnetto")$Ratio
+
+colnames(mar.mat) <- c("MAR Test (Cosine)", "MAR Test (Hermite)")
+rownames(mar.mat) <- c("Other Estate MV | Inheritances", "Life Insurance | Monthly savings", "Vehicles MV | HH netto income")
+
+mar.mat
+ # function to set missing values:  datami <- prodNA(data, noNA = 0.1)
+
 
 
 
