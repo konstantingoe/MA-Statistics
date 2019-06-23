@@ -132,6 +132,7 @@ MAR(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument =
 
 
 
+# function to set missing values:  datami <- prodNA(data, noNA = 0.1)
 
 
 
