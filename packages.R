@@ -62,6 +62,7 @@ pacman::p_load(
   Hmisc,
   sem,
   MASS,
+  np,
   Rlab,
   splines,
   crs,

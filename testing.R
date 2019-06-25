@@ -139,7 +139,7 @@ stargazer(test.mat, out = "mcar.tex", summary = F, digits = 3, notes = "SOEPv36 
 #### TEST MAR: P(D=1|X1,Y^*)=P(D=1|X1)  ###### 
 ############################################
 
-mar.mat <- matrix(ncol=2, nrow=3)
+mar.mat <- matrix(ncol=3, nrow=3)
 
 mar.mat[1,1] <- MAR(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "orbisscale", controls = "inheritscale", orthonormal.basis = "cosine")$Ratio
 mar.mat[1,2] <- MAR(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "lnorbis", controls = "lninheritance")$Ratio
@@ -150,12 +150,18 @@ mar.mat[2,2] <- MAR(data = filter(mydata, life_insure_filter == 1), missvar = "l
 mar.mat[3,1] <- MAR(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "orbisscale", controls = "hhnettoscaled", orthonormal.basis = "cosine")$Ratio
 mar.mat[3,2] <- MAR(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "lnorbis", controls = "lnhhnetto")$Ratio
 
-colnames(mar.mat) <- c("MAR Test (Cosine)", "MAR Test (Hermite)")
+colnames(mar.mat) <- c("MAR Test (Cosine)", "MAR Test (Hermite)", "MAR Delgado")
 rownames(mar.mat) <- c("Other Estate MV | Inheritances", "Life Insurance | Monthly savings", "Vehicles MV | HH netto income")
 
 mar.mat
  # function to set missing values:  datami <- prodNA(data, noNA = 0.1)
 
+###### Delgado's test ####
+
+#that doesn't seem to be correct!
+mar.mat[1,3] <- delgado(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "lnorbis", controls = "lninheritance")$Ratio
+mar.mat[2,3]<- delgado(data = filter(mydata, life_insure_filter == 1), missvar = "lnlife", instrument = "lnorbis", controls = "lnsaving")$Ratio
+mar.mat[3,3] <- delgado(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "lnorbis", controls = "lnhhnetto")$Ratio
 
 
 

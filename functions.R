@@ -181,4 +181,84 @@ MAR <- function(data = data, missvar = "missvar", instrument = "instrument", con
   }
 }
 
+###########################
+####### Delgado Test ######
+###########################
+
+delgado <- function(data = data, missvar = "missvar", instrument = "instrument", controls = "controls"){
+  if (sum(is.na(data[,instrument])) > 0) {
+    print("Stop, instrument should not have missing values")
+  } else if (sum(is.na(data[,controls])) > 0) {
+    print("Stop, controls should also be non-missing")
+  } else {  
+    
+    n <- length(data[,instrument])
+    W <- data[,instrument]
+    Y <- data[,missvar]
+    X <- data[,controls]
+
+    delta <- ifelse(is.na(data[,missvar]),0,1)
+    
+    # Bandwith as in DELGADO & MANTEIGA (2001), see page 1482
+    h.c <- .005*n^{-1/3}
+    
+    X.mat <- mat.or.vec(n,n)+X    
+    K.mat <- (1/(n^2*h.c))*k.fct((X.mat-t(X.mat))/h.c)
+    
+    
+    #     delta.mat <- mat.or.vec(n,n)+delta
+    #     test.fct<- 
+    #       function(w,x){
+    #     sum((1/(n^2*h.c))*k.fct((X.mat-t(X.mat))/h.c)*(delta.mat-t(delta.mat))*as.numeric(W<=w)*as.numeric(X<=x))}
+    #     
+    #     #This is the C_n statistic of DELGADO & MANTEIGA (2001), see page 1472
+    #     test[MC,1] <- sum(mcmapply(test.fct,W,X, mc.cores = 12)^2)
+    
+    reg.object <- npreg(delta ~ X, bws=h.c, ckertype='gaussian', residuals=TRUE)
+    epsilon_hat <- residuals(reg.object)
+    
+    
+  #  f.B<- function(BI){       # hier beginnt der Simulationsloop
+        V <- rbinom(n, 1,(1+5^.5)/sqrt(20))
+        V <-replace(V, V==1, (1-5^.5)/2)
+        V <-replace(V, V==0, (1+5^.5)/2)
+        
+        boot.eps <- epsilon_hat*V
+        delta_star <- fitted(reg.object)+ boot.eps
+        delta_star.mat <- mat.or.vec(n,n)+ delta_star
+        
+        #       test.fct<-  #selbe Funktion wie du unten nur mit delta_star anstatt delta (die funktion kann nat. aus dem B-Loop raus)
+        #         function(w,x){
+        #           sum((K.mat*(delta_star.mat-t(delta_star.mat)))*as.numeric(W<=w)*as.numeric(X<=x))}
+        # sum(mcmapply(test.fct,W,X, mc.cores = 12)^2)
+        
+        # This is the C_n^** statistic see page 1480
+        f.xw <- function(x,w){as.numeric(X<=x)*as.numeric(W<=w)}
+        
+        fb <- sum((rowSums(crossprod(K.mat*(delta_star.mat-t(delta_star.mat)), mapply(f.xw,X,W))))^2)#sum(mcmapply(test.fct,W,X, mc.cores = 12)^2)#sum(mapply(test_star.fct,W,X)^2)#
+   #     return(fb)
+    #  }
+      
+      test <- list("C_n**"= fb, "Critical Value"= qnorm(0.975), "Ratio"=fb/qnorm(0.975),
+                   "Test decision"= if (fb > qnorm(0.975)){
+                     print("We reject the Null of MAR given X")
+                   } else {
+                     print("We retain the Null of MAR given X")})
+      return(test)
+      cat(paste("The test value is",fb))
+      cat(paste("While the critical value is",qnorm(0.975)))
+      cat(paste("Their ratio is", fb/qnorm(0.975)))
+      
+      if (fb > qnorm(0.975)){
+        cat("Consequently, we reject the Null of MAR given X")
+      } else {
+        cat("Consequently, we retain the Null of MAR given X")
+      }  
+  }
+}
+
+
+
+
+
 
