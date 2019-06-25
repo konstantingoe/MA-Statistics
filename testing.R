@@ -150,10 +150,7 @@ mar.mat[2,2] <- MAR(data = filter(mydata, life_insure_filter == 1), missvar = "l
 mar.mat[3,1] <- MAR(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "orbisscale", controls = "hhnettoscaled", orthonormal.basis = "cosine")$Ratio
 mar.mat[3,2] <- MAR(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "lnorbis", controls = "lnhhnetto")$Ratio
 
-colnames(mar.mat) <- c("MAR Test (Cosine)", "MAR Test (Hermite)", "MAR Delgado")
-rownames(mar.mat) <- c("Other Estate MV | Inheritances", "Life Insurance | Monthly savings", "Vehicles MV | HH netto income")
 
-mar.mat
  # function to set missing values:  datami <- prodNA(data, noNA = 0.1)
 
 ###### Delgado's test ####
@@ -164,4 +161,55 @@ mar.mat[2,3]<- delgado(data = filter(mydata, life_insure_filter == 1), missvar =
 mar.mat[3,3] <- delgado(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "lnorbis", controls = "lnhhnetto")$Ratio
 
 
+colnames(mar.mat) <- c("MAR Test (Cosine)", "MAR Test (Hermite)", "MAR Delgado")
+rownames(mar.mat) <- c("Other Estate MV | Inheritances", "Life Insurance | Monthly savings", "Vehicles MV | HH netto income")
+
+stargazer(mar.mat,out = "mar.tex", summary = F, digits = 3, notes = "SOEPv36 - TopW Data; Given is the ratio between test statistic and critical value")
+
+mar.mat
+
+
+test1 <- delgado(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "lnorbis", controls = "lninheritance")$Ratio
+
+
+
+
+
+
+X <- filter(mydata, other_estate == 1)[,"lninheritance"]
+n <- length(X)
+W <- filter(mydata, other_estate == 1)[,"lnorbis"]
+Y <- filter(mydata, other_estate == 1)[,"lnestate"]
+delta <- ifelse(is.na(Y),0,1)
+
+# Bandwith as in DELGADO & MANTEIGA (2001), see page 1482
+h.c <- .005*n^{-1/3}
+
+X.mat <- mat.or.vec(n,n)+X    
+K.mat <- (1/(n^2*h.c))*k.fct((X.mat-t(X.mat))/h.c)
+
+reg.object <- npreg(delta~X, bws=h.c, ckertype='gaussian', residuals=TRUE)
+epsilon_hat <- residuals(ghat)
+
+
+
+V <- rbinom(n, 1,(1+5^.5)/sqrt(20))
+V <-replace(V, V==1, (1-5^.5)/2)
+V <-replace(V, V==0, (1+5^.5)/2)
+
+boot.eps <- epsilon_hat*V
+delta_star <- fitted(reg.object)+ boot.eps
+delta_star.mat <- mat.or.vec(n,n)+ delta_star
+
+#       test.fct<-  #selbe Funktion wie du unten nur mit delta_star anstatt delta (die funktion kann nat. aus dem B-Loop raus)
+#         function(w,x){
+#           sum((K.mat*(delta_star.mat-t(delta_star.mat)))*as.numeric(W<=w)*as.numeric(X<=x))}
+# sum(mcmapply(test.fct,W,X, mc.cores = 12)^2)
+
+# This is the C_n^** statistic see page 1480
+f.xw <- function(x,w){as.numeric(X<=x)*as.numeric(W<=w)}
+
+fb <- sum((rowSums(crossprod(K.mat*(delta_star.mat-t(delta_star.mat)), mapply(f.xw,X,W))))^2)
+fb
+ 
 

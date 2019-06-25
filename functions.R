@@ -1,6 +1,7 @@
 ##### Functions #####
 
 cos.F<-function(x,j){sqrt(2)*cos((j)*pi*x)}
+k.fct <- function(u){as.numeric(abs(u)<=1)*(1-u^2)*3/4}
 
 #### MCAR Function ####
 
@@ -206,10 +207,10 @@ delgado <- function(data = data, missvar = "missvar", instrument = "instrument",
     K.mat <- (1/(n^2*h.c))*k.fct((X.mat-t(X.mat))/h.c)
     
     
-    #     delta.mat <- mat.or.vec(n,n)+delta
-    #     test.fct<- 
-    #       function(w,x){
-    #     sum((1/(n^2*h.c))*k.fct((X.mat-t(X.mat))/h.c)*(delta.mat-t(delta.mat))*as.numeric(W<=w)*as.numeric(X<=x))}
+        delta.mat <- mat.or.vec(n,n)+delta
+         test.fct<- 
+           function(w,x){
+         sum((1/(n^2*h.c))*k.fct((X.mat-t(X.mat))/h.c)*(delta.mat-t(delta.mat))*as.numeric(W<=w)*as.numeric(X<=x))}
     #     
     #     #This is the C_n statistic of DELGADO & MANTEIGA (2001), see page 1472
     #     test[MC,1] <- sum(mcmapply(test.fct,W,X, mc.cores = 12)^2)
@@ -235,7 +236,8 @@ delgado <- function(data = data, missvar = "missvar", instrument = "instrument",
         # This is the C_n^** statistic see page 1480
         f.xw <- function(x,w){as.numeric(X<=x)*as.numeric(W<=w)}
         
-        fb <- sum((rowSums(crossprod(K.mat*(delta_star.mat-t(delta_star.mat)), mapply(f.xw,X,W))))^2)#sum(mcmapply(test.fct,W,X, mc.cores = 12)^2)#sum(mapply(test_star.fct,W,X)^2)#
+        fb <- sum((rowSums(crossprod(K.mat*(delta_star.mat-t(delta_star.mat)), mapply(f.xw,X,W))))^2)
+        #fb <- sum(mapply(test.fct,W,X)^2)#sum(mapply(test_star.fct,W,X)^2)#
    #     return(fb)
     #  }
       
