@@ -169,12 +169,8 @@ stargazer(mar.mat,out = "mar.tex", summary = F, digits = 3, notes = "SOEPv36 - T
 mar.mat
 
 
+# it fails... why?
 test1 <- delgado(data = filter(mydata, other_estate == 1), missvar = "lnestate", instrument = "lnorbis", controls = "lninheritance")$Ratio
-
-
-
-
-
 
 X <- filter(mydata, other_estate == 1)[,"lninheritance"]
 n <- length(X)
@@ -189,7 +185,7 @@ X.mat <- mat.or.vec(n,n)+X
 K.mat <- (1/(n^2*h.c))*k.fct((X.mat-t(X.mat))/h.c)
 
 reg.object <- npreg(delta~X, bws=h.c, ckertype='gaussian', residuals=TRUE)
-epsilon_hat <- residuals(ghat)
+epsilon_hat <- residuals(reg.object)
 
 
 
@@ -209,7 +205,8 @@ delta_star.mat <- mat.or.vec(n,n)+ delta_star
 # This is the C_n^** statistic see page 1480
 f.xw <- function(x,w){as.numeric(X<=x)*as.numeric(W<=w)}
 
-fb <- sum((rowSums(crossprod(K.mat*(delta_star.mat-t(delta_star.mat)), mapply(f.xw,X,W))))^2)
+# even if n^-1 is missing it is weird!
+fb <- sum(1/n*(rowSums(crossprod(K.mat*(delta_star.mat-t(delta_star.mat)), mapply(f.xw,X,W))))^2)
 fb
  
 
