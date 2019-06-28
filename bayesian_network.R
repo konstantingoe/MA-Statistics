@@ -70,7 +70,7 @@ gg_miss_var(estate, show_pct = TRUE)
 
 #### Quick imputation for simulation: kNN ####
 
-estate.clean <- VIM::kNN(estate, addRF = T)
+estate.clean <- VIM::kNN(estate, addRF = T, imp_var=F)
 
 anyNA(estate.clean)
 gg_miss_var(estate.clean, show_pct = TRUE)
@@ -86,10 +86,8 @@ learned2 <- hc(estate.bn, score = "bde")
 arc.strength(learned, data = estate.bn, criterion = "bic")
 # from the learned score, removing any will result in a decrease of BIC
 
-plot(learned, method="qgraph",
-     label.scale.equal=T,
-     node.width = 1.6,
-     plot.wpdag=T)
+learned3 <- tabu(estate.clean, score = "bic-cg")
+
 
 filehead <- c(T,F,F,T,T,T,T,T,T,F,F,F,T,F,T,T,T,T,F,F,T,F,F)
 varnames <- names(estate.bn)
@@ -101,13 +99,25 @@ bndata <- BNDataset(data = data.matrix(estate.bn, rownames.force = NA), discrete
 net <- learn.network(bndata, use.imputed.data = F,
                      initial.network = "random.chain",
                      seed = 12345)
+pdf("learnedBN.pdf") 
+graphviz.plot(learned3)
+dev.off()
 
-plot(net, method="qgraph",
-     label.scale.equal=F,
-     node.width = 1.6,
-     plot.wpdag=F)
+graphviz.plot(learned2)
 
+mb(learned3, node = "lnestate")
+narcs(learned3)
+directed.arcs(learned3)
 
+hist(estate.clean$lnestate, freq=F, breaks=25)
+lines(density(estate.clean$lnestate), col="red")
+lines(seq(-8, 4, by=.1), dnorm(seq(-8, 4, by=.1),
+      mean(estate.clean$lnestate), sd(estate.clean$lnestate)), col="blue")
+
+hist(estate.clean$lnhhnetto, freq=F, breaks=15)
+lines(density(estate.clean$lnhhnetto), col="red")
+lines(seq(-8, 4, by=.1), dnorm(seq(-8, 4, by=.1),
+                               mean(estate.clean$lnhhnetto), sd(estate.clean$lnhhnetto)), col="blue")
 
 ##### learn structure
 
@@ -143,5 +153,92 @@ bn <- learn.network(bndata,
                     layering = layers)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### for presentation ####
+
+dag1 <- empty.graph(nodes = c("A", "B", "C", "D", "E", "F"))
+arc.set <- matrix(c("A", "C",
+                    "B", "C",
+                    "C", "D",
+                    "C", "E",
+                    "D", "F",
+                    "E", "F"),
+                  byrow = TRUE, ncol = 2,
+                  dimnames = list(NULL, c("from", "to")))
+arcs(dag1) <- arc.set
+
+modelstring(dag1)
+nodes(dag1)
+arcs(dag1)
+
+# Graphical Implementation
+pdf("exampleBN.pdf") 
+graphviz.plot(dag1)
+dev.off()
+
+
+
+hlight <- list(nodes = nodes(dag1), arcs = arcs(dag1),
+               col = "grey", textCol = "grey")
+pp <- graphviz.plot(dag1, highlight = hlight)
+
+graph::nodeRenderInfo(pp) <- list(col = c("A" = "black", "B" = "black", "C" = rgb(0, 0, 0.45)),
+                                  textCol = c("A" = "black", "B" = "black", "C" = rgb(0, 0, 0.45)))
+graph::edgeRenderInfo(pp) <- list(col = c("A~C" = "black", "B~C" = "black"),
+                                  lwd = c("A~C" = 3, "B~C" = 3))
+pdf("parentsBN.pdf") 
+Rgraphviz::renderGraph(pp)
+dev.off()
+
+mb(dag1, node = "C")
+pp <- graphviz.plot(dag1, highlight = hlight)
+
+graph::nodeRenderInfo(pp) <- list(col = c("A" = "black", "B" = "black", "C" = rgb(0, 0, 0.45), "D" = "black", "E" = "black"),
+                                  textCol = c("A" = "black", "B" = "black", "C" = rgb(0, 0, 0.45), "D" = "black", "E" = "black"))
+graph::edgeRenderInfo(pp) <- list(col = c("A~C" = "black", "B~C" = "black", "C~D" = "black", "C~E" = "black"),
+                                  lwd = c("A~C" = 3, "B~C" = 3, "C~D" = 3, "C~E" = 3))
+pdf("markovb.pdf") 
+Rgraphviz::renderGraph(pp)
+dev.off()
+
+
+### better to see the Markov blanket property:
+
+dag2 <- empty.graph(nodes = c("A", "B", "C", "D", "E", "F", "G"))
+arc.set <- matrix(c("A", "C",
+                    "B", "C",
+                    "C", "D",
+                    "C", "E",
+                    "D", "F",
+                    "E", "F",
+                    "G", "D"),
+                  byrow = TRUE, ncol = 2,
+                  dimnames = list(NULL, c("from", "to")))
+arcs(dag2) <- arc.set
+
+mb(dag2, node = "C")
+
+pp <- graphviz.plot(dag2, highlight = hlight)
+
+graph::nodeRenderInfo(pp) <- list(col = c("A" = "black", "B" = "black", "C" = rgb(0, 0, 0.45), "D" = "black", "E" = "black", "G" = "black"),
+                                  textCol = c("A" = "black", "B" = "black", "C" = rgb(0, 0, 0.45), "D" = "black", "E" = "black", "G" = "black"))
+graph::edgeRenderInfo(pp) <- list(col = c("A~C" = "black", "B~C" = "black", "C~D" = "black", "C~E" = "black", "G~D" = "black"),
+                                  lwd = c("A~C" = 3, "B~C" = 3, "C~D" = 3, "C~E" = 3, "G~D" = 3))
+pdf("markovb_2.pdf") 
+Rgraphviz::renderGraph(pp)
+dev.off()
 
 
