@@ -28,10 +28,12 @@ MCAR <- function(data = data, missvar = "missvar", instrument = "instrument", or
       if (max(W) > 1 | min(W) < 0) {
         stop("Stop, cosine basis function only takes values in [0,1]")
       } else {
-      b.fct <- function(i){cos.F(W, i)/sqrt(factorial(i))}
+      b.fct <- function(i){cos.F(W, i)} 
       }
     } else if (orthonormal.basis == "hermite"){
       b.fct <- function(i){hermite(W, i)/sqrt(factorial(i))}
+    } else if (orthonormal.basis == "bspline"){
+      b.fct <- function(i){mSpline(W, degree = i)/sqrt(factorial(i))}
     }
     BasWf.mat<-matrix(unlist(mclapply(1:m, b.fct, mc.cores = detectCores() -1)), n, m)
     
@@ -127,10 +129,10 @@ MAR <- function(data = data, missvar = "missvar", instrument = "instrument", con
           } else {
 
         BasWh.mat=mat.or.vec(n,m)
-        for(i in 1:m){BasWh.mat[,i] <- cos.F(W, i)/sqrt(factorial(i))}
+        for(i in 1:m){BasWh.mat[,i] <- cos.F(W, i)} 
           
         BasXh.mat=mat.or.vec(n,m)
-        for(i in 1:m){BasXh.mat[,i] <- cos.F(X, i)/sqrt(factorial(i))}
+        for(i in 1:m){BasXh.mat[,i] <- cos.F(X, i)}
           }  
           
         } else if (orthonormal.basis == "hermite"){
@@ -215,6 +217,17 @@ delgado <- function(data = data, missvar = "missvar", instrument = "instrument",
     #     #This is the C_n statistic of DELGADO & MANTEIGA (2001), see page 1472
     #     test[MC,1] <- sum(mcmapply(test.fct,W,X, mc.cores = 12)^2)
     
+     # allocate space
+   #  B <- 2000
+  #   epsilon_hat <- rep(0, B)
+     
+     # perform B bootstrap repetitions
+   #  for(b in 1:B){
+  #     ind <- sample(1:n, n, replace = TRUE)
+  #     epsilon_hat[b] <- residuals(npreg(delta[ind] ~ X[ind], bws=h.c, ckertype='gaussian', residuals=TRUE))
+  #   }
+     
+         
     reg.object <- npreg(delta ~ X, bws=h.c, ckertype='gaussian', residuals=TRUE)
     epsilon_hat <- residuals(reg.object)
     

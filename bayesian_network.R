@@ -7,6 +7,29 @@ source(".path.R")
 mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
 
 
+
+test.imp <- VIM::kNN(test, makeNA = nacond)
+
+gg_miss_var(test.imp, show_pct = TRUE)
+
+
+#  filter(owner == 1) 
+#  filter(other_estate == 1) 
+#  filter(assets_filter == 1) 
+#  filter(building_contract_filter == 1)
+#  filter(life_insure_filter == 1) 
+#  filter(business_holdings_filter == 1) 
+#  filter(vehicles_filter == 1) 
+#  filter(tangibles_filter == 1) 
+
+#### liabilities:
+
+### set of filters:   
+#  filter(residence_debt_filter == 1) 
+#  filter(other_estate_debt_filter == 1) 
+#  filter(consumer_debt_filter == 1) 
+#  filter(education_debt_filter == 1) 
+
 mydata <- mydata %>% 
   mutate(lnorbis         = log(orbis_wealth) - log(mean(orbis_wealth, na.rm = T))) %>%
   mutate(lnwage_g        = log(1+wage_gross_m) - log(mean(wage_gross_m, na.rm = T))) %>% 
@@ -53,7 +76,7 @@ preparation <- mydata %>%
 
   
 estatevars <- c("sex", "lnhhnetto", "lnwage_g", "educationjob", "other_estate_debt_filter",
-                "housedebt", "selfempl", "employed", "famstd", "age", "total_inheritance",
+                "housedebt", "selfempl", "employed", "famstd", "age",
                 "lnorbis", "lmstatus", "hours_actual", "inherit_filter", "other_estate_value_limits", "kidsu16",
                 "livingcond", "estate_income_value", "saving_value", "owner", "lnestate", "other_estate_value", "lninheritance",
                 "lnresidence", "lnassets", "lnbuilding", "lnbusiness", "lnvehicles", "lnestatedebt")
@@ -98,100 +121,34 @@ estate.clean <- select(estate.clean, -other_estate_value, -estate)
 anyNA(estate.clean)
 gg_miss_var(estate.clean, show_pct = TRUE)
 
-#estate.bn <- discretize(estate.bn, ordered = T, method = "interval")
-#learned <- hc(estate.bn)
-#modelstring(learned)
-#score(learned, data = estate.bn, type = "bic")
+# now create netwealth variable 
 
-#learned2 <- hc(estate.bn, score = "bde")
-#arc.strength(learned, data = estate.bn, criterion = "bic")
-# from the learned score, removing any will result in a decrease of BIC
+estate.final <- 
 
-learned3 <- tabu(estate.clean, score = "bic-cg")
+#### mixed data types: DEAL package
+### 
+small <- select(estate.clean, -c("educationjob", "famstd", "lmstatus", "estate_limits", "livingcond"))
 
-pdf("learnedBN.pdf") 
-graphviz.plot(learned3)
-dev.off()
+net <- deal::network(small)
+net
+ggnet2(net)
 
-#graphviz.plot(learned2)
+prior <- jointprior(net)
 
-mb(learned3, node = "lnestate")
-narcs(learned3)
-directed.arcs(learned3)
-nnodes(learned3)
-directed.arcs(learned3)
+net <- learn(net, small, prior)$nw
 
-hist(estate.clean$lnestate, freq=F, breaks=25)
-lines(density(estate.clean$lnestate), col="red")
-lines(seq(-8, 4, by=.1), dnorm(seq(-8, 4, by=.1),
-      mean(estate.clean$lnestate), sd(estate.clean$lnestate)), col="blue")
-
-hist(estate.clean$lnhhnetto, freq=F, breaks=15)
-lines(density(estate.clean$lnhhnetto), col="red")
-lines(seq(-8, 4, by=.1), dnorm(seq(-8, 4, by=.1),
-                               mean(estate.clean$lnhhnetto), sd(estate.clean$lnhhnetto)), col="blue")
+best <- autosearch(net, small, prior, trace = T)
 
 
+mstring <- deal::modelstring(best$nw)
+mstring
+dag.deal <- model2network(mstring)
 
+ggnet2(dag.deal$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+ggsave("bayesian_net.pdf")
 
-
-
-##### learn structure
-
-filehead <- c(T,F,T, rep(F, 3), T, F, T)
-varnames <- names(residence)
-cardinality <- c(3,50,2,10,50,100,2,50,5)
-
-### maybe use cardinality from discretize... or discretized data.frame for bndata....
-
-
-bndata <- BNDataset(data = as.matrix(residence), discreteness = filehead, variables = varnames, node.sizes = cardinality)
-print(bndata)
-layers <- c(2,1,1,3,2,2,2,3,2)
-
-
-imp.dataset <- bnstruct::impute(bndata, k.impute = 50)
-has.imputed.data(imp.dataset)
-net <- learn.network(imp.dataset, use.imputed.data = TRUE,
-                     layering = layers,
-                     initial.network = "random.chain",
-                     seed = 12345)
-
-plot(net, method="qgraph",
-     label.scale.equal=F,
-     node.width = 1.6,
-     plot.wpdag=F)
-
-
-#### gives me an error at some point...
-bn <- learn.network(bndata,
-                    algo = "sem",
-                    scoring.func = "AIC",
-                    layering = layers)
-
-
-
-filehead <- c(T,F,F,T,T,T,T,T,T,F,F,F,T,F,T,T,T,T,F,F,T,F,F)
-varnames <- names(estate.bn)
-cardinality <- c(2,50,50,4,2,2,2,2,4,5,50,50,5,50,2,5,2,5,50,50,2,50,50)
-
-
-bndata <- BNDataset(data = data.matrix(estate.bn, rownames.force = NA), discreteness = filehead, variables = varnames, node.sizes = cardinality)
-
-net <- learn.network(bndata, use.imputed.data = F,
-                     initial.network = "random.chain",
-                     seed = 12345)
-
-
-
-
-
-
-
-
-
-
-
+mb(dag.deal, "lnestate")
 
 #### for presentation ####
 

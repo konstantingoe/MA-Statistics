@@ -73,9 +73,17 @@ pacman::p_load(
   EQL,
   fitdistrplus,
   DMwR,
+  arules,
   laeken,
+  sna,
+  intergraph,
+  scales,
+  network,
+  GGally,
   VIM,
+  splines2,
   reshape2,
+  deal,
   # those beneath always load last
   ggplot2,
   tidyverse)
