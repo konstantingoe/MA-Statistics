@@ -131,6 +131,7 @@ test4 <- sapply(seq_along(conditions),
 
 test.mat = cbind(test1, test2, test3, test4)
 
+
 colnames(test.mat) <- c("MCAR Test (Cosine)", "MCAR Test (Hermite)", "Little's Test", "Correlation")
 rownames(test.mat) <- test.names
 test.mat
@@ -151,15 +152,17 @@ MARxcos    <- c("inheritscale", "inheritscale", "savingscaled", "savingscaled", 
 MARxhermite    <- c("lninheritance", "lninheritance", "lnsaving", "lnsaving", "lnhhnetto", "lnhhnetto", "lninheritance", "lninheritance") 
 
 
-
-
 MAR1 <- sapply(seq_along(MARcond), 
                 function(p) MAR(data = filter(mydata, .data[[MARcond[[p]]]] == 1), missvar = MARvars[p], instrument = "orbisscale", controls = MARxcos[p], orthonormal.basis = "cosine")$Ratio)
 
-MAR1 <- sapply(seq_along(MARcond), 
+MAR2 <- sapply(seq_along(MARcond), 
                function(p) MAR(data = filter(mydata, .data[[MARcond[[p]]]] == 1), missvar = MARvars[p], instrument = "lnorbis", controls = MARxhermite[p])$Ratio)
 
 mar.mat <- cbind(MAR1, MAR2)
+
+colnames(mar.mat) <- c("MAR Test (Cosine)", "MAR Test (Hermite)")
+rownames(mar.mat) <- c("Residence MV | Inheritances", "Other Estate MV | Inheritances", "Assets MV | Monthly savings", "Life Insurance | Monthly savings", "Company Shares | HH netto income","Vehicles MV | HH netto income", "Tangibles | Inheritances", "Estate Debt | Inheritances")
+
  # function to set missing values:  datami <- prodNA(data, noNA = 0.1)
 
 ###### Delgado's test ####
@@ -170,8 +173,6 @@ mar.mat <- cbind(MAR1, MAR2)
 #mar.mat[3,3] <- delgado(data = filter(mydata, vehicles_filter == 1), missvar = "lnvehicles", instrument = "lnorbis", controls = "lnhhnetto")$Ratio
 
 
-colnames(mar.mat) <- c("MAR Test (Cosine)", "MAR Test (Hermite)")
-rownames(mar.mat) <- c("Other Estate MV | Inheritances", "Life Insurance | Monthly savings", "Vehicles MV | HH netto income")
 
 stargazer(mar.mat,out = "mar.tex", summary = F, digits = 3, notes = "SOEPv36 - TopW Data; Given is the ratio between test statistic and critical value")
 
