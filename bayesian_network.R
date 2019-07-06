@@ -149,7 +149,7 @@ plot(net)
 
 prior <- jointprior(net)
 
-net <- learn(net, final.imp, prior)$nw
+net <- deal::learn(net, final.imp, prior)$nw
 
 best <- autosearch(net, final.imp, prior, trace = T)
 

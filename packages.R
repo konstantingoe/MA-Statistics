@@ -66,6 +66,7 @@ pacman::p_load(
   Rlab,
   splines,
   crs,
+  HydeNet,
   rpart,
   mvnmle,
   BaylorEdPsych,
