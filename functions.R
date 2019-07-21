@@ -33,6 +33,8 @@ MCAR <- function(data = data, missvar = "missvar", instrument = "instrument", or
     } else if (orthonormal.basis == "hermite"){
       b.fct <- function(i){hermite(W, i)/sqrt(factorial(i))}
     } else if (orthonormal.basis == "bspline"){
+      
+      knots<- expand.knots(seq(min(W),max(W)))
       b.fct <- function(i){mSpline(W, degree = i)/sqrt(factorial(i))}
     }
     BasWf.mat<-matrix(unlist(mclapply(1:m, b.fct, mc.cores = detectCores() -1)), n, m)
@@ -82,7 +84,7 @@ MCAR <- function(data = data, missvar = "missvar", instrument = "instrument", or
 
 
 #########################################################################################
-#### TEST MAR: P(D=1|X,Y^*)=P(D=1|X) Response depends on hours worked   ###############
+####                       TEST MAR: P(D=1|X,Y^*)=P(D=1|X)                ###############
 #########################################################################################
 
 
