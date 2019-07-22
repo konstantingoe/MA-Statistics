@@ -33,9 +33,9 @@ MCAR <- function(data = data, missvar = "missvar", instrument = "instrument", or
     } else if (orthonormal.basis == "hermite"){
       b.fct <- function(i){hermite(W, i)/sqrt(factorial(i))}
     } else if (orthonormal.basis == "bspline"){
-      
       knots<- expand.knots(seq(min(W),max(W)))
-      b.fct <- function(i){mSpline(W, degree = i)/sqrt(factorial(i))}
+      #b.fct <- function(i){bSpline(W, degree = i, knots = knots)} #Boundary.knots = range(W, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
+      b.fct <- function(i){bSpline(W, degree = i, Boundary.knots = range(W, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
     }
     BasWf.mat<-matrix(unlist(mclapply(1:m, b.fct, mc.cores = detectCores() -1)), n, m)
     
@@ -131,10 +131,10 @@ MAR <- function(data = data, missvar = "missvar", instrument = "instrument", con
           } else {
 
         BasWh.mat=mat.or.vec(n,m)
-        for(i in 1:m){BasWh.mat[,i] <- cos.F(W, i)} 
+        for(i in 1:m){BasWh.mat[,i] <- cos.F(range01(W), i)} 
           
         BasXh.mat=mat.or.vec(n,m)
-        for(i in 1:m){BasXh.mat[,i] <- cos.F(X, i)}
+        for(i in 1:m){BasXh.mat[,i] <- cos.F(range01(X), i)}
           }  
           
         } else if (orthonormal.basis == "hermite"){
@@ -143,6 +143,20 @@ MAR <- function(data = data, missvar = "missvar", instrument = "instrument", con
         
         BasXh.mat=mat.or.vec(n,m)
         for(i in 1:m){BasXh.mat[,i] <- hermite(X, i)/sqrt(factorial(i))}
+        }  else if (orthonormal.basis == "bspline"){
+        
+        knots<- expand.knots(seq(min(W),max(W)))
+        #b.fct <- function(i){bSpline(W, degree = i, knots = knots)} #Boundary.knots = range(W, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
+        b.fctW <- function(i){bSpline(W, degree = i, Boundary.knots = range(W, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
+        BasWh.mat=mat.or.vec(n,m)
+        for(i in 1:m){BasWh.mat <- as.matrix(b.fctW(i))}
+        
+        
+        knots<- expand.knots(seq(min(X),max(X)))
+        #b.fct <- function(i){bSpline(X, degree = i, knots = knots)} #Boundary.knots = range(X, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
+        b.fctX <- function(i){bSpline(X, degree = i, Boundary.knots = range(X, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
+        BasXh.mat=mat.or.vec(n,m)
+        for(i in 1:m){BasXh.mat <- as.matrix(b.fctX(i))}  
         }
         BasWf.mat=mat.or.vec(n,m^2)
         BasWf.mat <- mat.or.vec(n,(length(BasWh.mat[1,])*length(BasXh.mat[1,])))
