@@ -263,10 +263,10 @@ rownames(mar.mat) <- c("Residence MV | Inheritances", "Other Estate MV | Inherit
 
 
 s=-1.5     ####-1, -1.5, -2
-n <- length(filter(mydata, owner==1)$lnorbis)
-W <- filter(mydata, owner==1)$lnorbis
-Y <- filter(mydata, owner==1)$lnresidence
-X <- filter(mydata, owner==1)$lninheritance
+n <- length(filter(mydata, other_estate_debt_filter==1)$lnorbis)
+W <- filter(mydata, other_estate_debt_filter==1)$lnorbis
+Y <- filter(mydata, other_estate_debt_filter==1)$lnestatedebt
+X <- filter(mydata, other_estate_debt_filter==1)$lnhhnetto
 m = round(sqrt(n))
 c.eig <-m^2
 delta <- ifelse(is.na(Y),0,1)
@@ -290,39 +290,18 @@ BasX.mat = cbind(1,gsl.bs(X,degree=max(4,2), nbreak=max(2,cv.h$K[1,2])))
 
 h.hat <- BasX.mat%*%ginv(t(BasX.mat)%*%BasX.mat)%*%t(BasX.mat)%*%delta
 
-if (orthonormal.basis == "cosine"){
-  if (max(W) > 1 | min(W) < 0 | max(X) > 1 | min(X) < 0){
-    stop("Stop, cosine basis function only takes values in [0,1]")
-  } else {
-    
-    BasWh.mat=mat.or.vec(n,m)
-    for(i in 1:m){BasWh.mat[,i] <- cos.F(range01(W), i)} 
-    
-    BasXh.mat=mat.or.vec(n,m)
-    for(i in 1:m){BasXh.mat[,i] <- cos.F(range01(X), i)}
-  }  
-  
-} else if (orthonormal.basis == "hermite"){
-  BasWh.mat=mat.or.vec(n,m)
-  for(i in 1:m){BasWh.mat[,i] <- hermite(W, i)/sqrt(factorial(i))}
-  
-  BasXh.mat=mat.or.vec(n,m)
-  for(i in 1:m){BasXh.mat[,i] <- hermite(X, i)/sqrt(factorial(i))}
-}  else if (orthonormal.basis == "bspline"){
-  
   knots<- expand.knots(seq(min(W),max(W)))
-  #b.fct <- function(i){bSpline(W, degree = i, knots = knots)} #Boundary.knots = range(W, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
+  b.fct <- function(i){bSpline(W, degree = i, knots = knots)} #Boundary.knots = range(W, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
   b.fctW <- function(i){bSpline(W, degree = i, Boundary.knots = range(W, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
   BasWh.mat=mat.or.vec(n,m)
-  for(i in 1:m){BasWh.mat <- as.matrix(b.fctW(i))}
+  BasWh.mat <- b.fctW(m)
 
-  
   knots<- expand.knots(seq(min(X),max(X)))
-  #b.fct <- function(i){bSpline(X, degree = i, knots = knots)} #Boundary.knots = range(X, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
+  b.fct <- function(i){bSpline(X, degree = i, knots = knots)} #Boundary.knots = range(X, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
   b.fctX <- function(i){bSpline(X, degree = i, Boundary.knots = range(X, na.rm = TRUE))} #knots = knots} #/sqrt(factorial(i))}
   BasXh.mat=mat.or.vec(n,m)
-  for(i in 1:m){BasXh.mat <- as.matrix(b.fctX(i))}  
-}
+  BasXh.mat <- b.fctX(m)
+  
 BasWf.mat=mat.or.vec(n,m^2)
 BasWf.mat <- mat.or.vec(n,(length(BasWh.mat[1,])*length(BasXh.mat[1,])))
 for( i in 1:n){ BasWf.mat[i,] <- kronecker(BasWh.mat[i,],BasXh.mat[i,])}
@@ -345,7 +324,9 @@ eps.mat  <- eps.1.mat - eps.h.mat
 Sigma.mat<-t(eps.mat)%*%eps.mat/n
 eig.vec<-rev(sort(eigen(Sigma.mat, symmetric = TRUE)$values))
 CC<-sort(eig.vec[1:c.eig]%*%C.mat)
-
+Test0
+CC[950000]
+Test0/CC[950000]
 
 
 
