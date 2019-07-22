@@ -158,9 +158,12 @@ MAR <- function(data = data, missvar = "missvar", instrument = "instrument", con
           #BasXh.mat <- mat.or.vec(n,m)
           BasXh.mat <- b.fctX(m) 
         }
+        #attributes(BasWh.mat) <- NULL
+        #attributes(BasXh.mat) <- NULL
         BasWf.mat <- mat.or.vec(n,m^2)
-        BasWf.mat <- mat.or.vec(n,(length(BasWh.mat[1,])*length(BasXh.mat[1,])))
-        for(i in seq_len(n)){BasWf.mat[i,] <- kronecker(BasWh.mat[i,],BasXh.mat[i,])}
+        #BasWf.mat <- mat.or.vec(n,(length(as.matrix(BasWh.mat[1,]))*length(as.matrix(BasXh.mat[1,]))))
+        
+        for(i in seq_len(n)){BasWf.mat[i,] <- kronecker(as.matrix(BasWh.mat[i,]),as.matrix(BasXh.mat[i,]))}
 
         coef0.vec <- t(delta-h.hat)%*%BasWf.mat/n
         coef2.vec <- sort(coef0.vec^2, decreasing = TRUE, index.return=TRUE)
