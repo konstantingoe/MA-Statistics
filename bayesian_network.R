@@ -166,13 +166,61 @@ multiple.imp <- multiple.imp %>%
   mutate(married = factor(ifelse(famstd==2,1,0), ordered =F)) %>% 
   mutate(single = factor(ifelse(famstd==1,1,0), ordered =F)) %>% 
   mutate(div_wid = factor(ifelse(famstd==3 | famstd==4,1,0), ordered =F)) %>% 
-  mutate(education_high_job = factor(ifelse(educationjob==4 | famstd==3,1,0), ordered =F)) %>% 
+  mutate(education_high_job = factor(ifelse(educationjob==4 | educationjob==3,1,0), ordered =F)) %>% 
   mutate(education_vocational_job = factor(ifelse(educationjob==2,1,0), ordered =F)) %>% 
-  select(-famstd, -lmstatus, -educationjob)
+  select(-educationjob, -famstd, -lmstatus)
   
-multiple.imp2 <- select(multiple.imp, -netwealth, -lnnetwealth, -pid)  
+multiple.imp2 <- select(multiple.imp, -net_wealth, -netwealth, -liabilities, -lnnetwealth, -pid)  
 
+#apparently we don't necessarily need the deal package
+# for later reordering of the cpdag to dag: pdag2dag(x, ordering), or maybe node.ordering(x, debug = FALSE)
+# for prediction/impuatation: impute(object, data, method, ..., debug = FALSE)
+
+# if normal structure learning can't handle constraints from the flags try:
+#learn.mb(x, node, method, whitelist = NULL, blacklist = NULL, start = NULL,
+#test = NULL, alpha = 0.05, B = NULL, max.sx = NULL, debug = FALSE)
+#learn.nbr(x, node, method, whitelist = NULL, blacklist = NULL,
+#          test = NULL, alpha = 0.05, B = NULL, max.sx = NULL, debug = FALSE)
 ### missing values unpractical: set to 0:
+
+residence.imp <- filter(multiple.imp2, owner == 1) %>% 
+  select(-filters2)
+for (i in 1:ncol(residence.imp)){
+  if (sum(is.na(residence.imp[,i]) > 0)){
+    residence.imp[,i] <- ifelse(is.na(residence.imp[,i]), 0, residence.imp[,i])
+  }
+}
+
+gg_miss_var(residence.imp, show_pct = TRUE)
+
+structure1 <- hc(residence.imp, score = "loglik-cg")
+structure2 <- hc(residence.imp, score = "aic-cg")
+structure3 <- hc(residence.imp, score = "bic-cg")
+
+
+net <- deal::network(residence.imp)
+print(net)
+plot(net)
+
+prior <- jointprior(net)
+
+net <- deal::learn(net, residence.imp, prior)$nw
+
+best <- autosearch(net, residence.imp, prior, trace = T, removecycles = T)
+
+
+
+bnlearn::parents(structure3, "consumer_debt")
+
+ggnet2(structure1$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+
+ggnet2(structure2$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+
+ggnet2(structure3$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+
 
 #multiple.imp2 <- as.data.frame(multiple.imp2)
 for (i in 1:ncol(multiple.imp2)){
@@ -181,6 +229,46 @@ for (i in 1:ncol(multiple.imp2)){
   }
 }
 gg_miss_var(multiple.imp2, show_pct = TRUE)
+
+
+# whitelist the filter vars:
+from <- c(filters2)
+to <- c(asset.vars, liabilities.vars)
+whitelist <- as.data.frame(cbind(from,to)) 
+
+structurelearn1 <- hc(multiple.imp2, score = "loglik-cg", whitelist = whitelist)
+structurelearn2 <- hc(multiple.imp2, score = "aic-cg", whitelist = whitelist)
+structurelearn3 <- hc(multiple.imp2, score = "bic-cg", whitelist = whitelist)
+
+score <- bnlearn::score(structurelearn1, multiple.imp2, type = "aic-cg", by.node = T)
+
+
+
+bnlearn::parents(structurelearn4, "residence_value")
+
+
+graphviz.plot(structurelearn)
+
+ggnet2(structurelearn4$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+
+
+
+
+reliability <- sapply(multiple.imp2, function(x) sum(is.na(x)))/nrow(multiple.imp2)
+reliability <- order(reliability, decreasing = T)
+
+
+
+
+
+
+
+
+
+
+
+
 
 net <- deal::network(multiple.imp2)
 print(net)
