@@ -1,5 +1,14 @@
 ##### Functions #####
 
+normalize.log <- function(x){
+  if (any(x == 0, na.rm=T) == TRUE){
+    cat("Warning: Zero values are recoded to 1")
+    (log(1+x) - log(mean(1+x, na.rm = T)))/log(sd(1+x, na.rm =T))
+  } else {
+    (log(x) - log(mean(x, na.rm = T)))/log(sd(x, na.rm =T))
+  }
+}
+
 cos.F<-function(x,j){sqrt(2)*cos((j)*pi*x)}
 k.fct <- function(u){as.numeric(abs(u)<=1)*(1-u^2)*3/4}
 

@@ -4,6 +4,7 @@
 rm(list = ls())
 source("packages.R")
 source(".path.R")
+source("functions.R")
 mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
 
 # first impute filter information and then based on these impute wealth components:
@@ -12,40 +13,43 @@ mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
 
 
 mydata <- mydata %>% 
-  mutate(owner = factor(owner)) %>% 
-  mutate(other_estate = factor(other_estate)) %>% 
-  mutate(assets_filter = factor(assets_filter)) %>% 
-  mutate(building_contract_filter = factor(building_contract_filter)) %>% 
-  mutate(life_insure_filter = factor(life_insure_filter)) %>% 
-  mutate(business_holdings_filter = factor(business_holdings_filter)) %>% 
-  mutate(vehicles_filter = factor(vehicles_filter)) %>% 
-  mutate(tangibles_filter = factor(tangibles_filter)) %>% 
-  mutate(residence_debt_filter = factor(residence_debt_filter)) %>% 
-  mutate(other_estate_debt_filter = factor(other_estate_debt_filter)) %>% 
-  mutate(consumer_debt_filter = factor(consumer_debt_filter)) %>% 
-  mutate(education_debt_filter = factor(education_debt_filter)) %>% 
-  mutate(lmstatus = factor(lmstatus)) %>% 
-  mutate(sex = factor(sex)) %>% 
-  mutate(famstd = factor(famstd)) %>% 
-  mutate(inherit_filter = factor(inherit_filter)) %>% 
-  mutate(selfempl = factor(selfempl)) %>% 
-  mutate(kidsu16 = factor(kidsu16)) %>% 
-  mutate(other_estate_debt_filter = factor(other_estate_debt_filter)) %>% 
-  mutate(employed = factor(employed)) %>% 
-  mutate(livingcond = factor(livingcond, ordered = T)) %>% 
-  mutate(other_estate_value_limits = factor(other_estate_value_limits, ordered = T)) %>% 
-  #mutate(educationjob    = ifelse(educationjob <0 , NA, educationjob)) %>% 
-  mutate(educationjob    = factor(educationjob, ordered = T)) %>% 
-  mutate(housedebt       = factor(housedebt)) %>% 
-  mutate(lnsqrmtrs       = log(sqmtrs) - log(mean(sqmtrs, na.rm = T))) %>%
-  mutate(lnsaving        = log(1+saving_value) - log(mean(1+saving_value, na.rm = T))) %>%
-  mutate(lnhhnetto       = log(1+hhnetto) - log(mean(1+hhnetto, na.rm = T))) %>%
-  mutate(lninheritance   = log(1+total_inheritance) - log(mean(1+total_inheritance, na.rm = T))) %>%
-  mutate(lnorbis         = log(orbis_wealth) - log(mean(orbis_wealth, na.rm = T))) %>%
-  mutate(lnwage_g        = log(1+wage_gross_m) - log(mean(wage_gross_m, na.rm = T))) %>% 
-  mutate(lnjobduration   = log(jobduration) - log(mean(jobduration, na.rm = T))) %>% 
-  mutate(educationjob    = ifelse(educationjob==-1,NA,educationjob))
-  
+  mutate(owner = factor(owner),
+         other_estate = factor(other_estate),
+         assets_filter = factor(assets_filter),
+         building_contract_filter = factor(building_contract_filter),
+         life_insure_filter = factor(life_insure_filter),
+         business_holdings_filter = factor(business_holdings_filter),
+         vehicles_filter = factor(vehicles_filter), 
+         tangibles_filter = factor(tangibles_filter),
+         residence_debt_filter = factor(residence_debt_filter),
+         other_estate_debt_filter = factor(other_estate_debt_filter),
+         consumer_debt_filter = factor(consumer_debt_filter),
+         education_debt_filter = factor(education_debt_filter),
+         lmstatus = factor(lmstatus),
+         sex = factor(sex),
+         famstd = factor(famstd),
+         inherit_filter = factor(inherit_filter),
+         selfempl = factor(selfempl),
+         kidsu16 = factor(kidsu16),
+         other_estate_debt_filter = factor(other_estate_debt_filter),
+         employed = factor(employed),
+         livingcond = factor(livingcond, ordered = T),
+         other_estate_value_limits = factor(other_estate_value_limits, ordered = T),
+         educationjob    = ifelse(educationjob <0 , NA, educationjob),
+         educationjob    = factor(educationjob, ordered = T),
+         housedebt       = factor(housedebt),
+         lnsqrmtrs       = normalize.log(sqmtrs),
+         lnsaving        = normalize.log(saving_value),
+         lnhhnetto       = normalize.log(hhnetto),
+         lninheritance   = normalize.log(total_inheritance),
+         lnorbis         = normalize.log(orbis_wealth),
+         lnwage_g        = normalize.log(wage_gross_m),
+         lnjobduration   = normalize.log(jobduration),
+         lnestateinc     = normalize.log(estate_income_value),
+         educationjob    = ifelse(educationjob==-1,NA,educationjob))
+
+###### Preparing Monte Carlo Study #####
+
 filterimp <- c("pid","owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
                "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
                "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", "lmstatus",
@@ -62,6 +66,7 @@ filterimp2 <- c("owner","other_estate", "assets_filter", "building_contract_filt
 filter <- select(mydata, one_of(filterimp))
 gg_miss_var(filter, show_pct = TRUE)
 
+# first impute filter variables 
 filter.imp <- VIM::kNN(filter, variable = filterimp2, imp_var =F)
 
 gg_miss_var(filter.imp, show_pct = TRUE)
@@ -84,10 +89,11 @@ other.vars <- c("pid","lmstatus","sex", "famstd", "inherit_filter", "selfempl","
                 "lnorbis", "lnwage_g", "lnjobduration")   
 
 wealth.comp <- select(mydata, one_of(wealth.vars,other.vars))
-wealth.comp <- cbind(select(filter.post, -pid), wealth.comp)
+wealth.comp <- full_join(filter.post,wealth.comp, by=names(intersect(wealth.comp,filter.post)))
 gg_miss_var(wealth.comp, show_pct = TRUE)
 
-
+### all 12 wealth components each filled up sequentially if filter is true
+### put here all target variables and the remaining wealth components and then call from this list!
 filter.imp <- setNames(lapply(seq_along(wealth.vars), function(i) 
   VIM::kNN(select(filter(wealth.comp, .data[[filters2[[i]]]] == 1), one_of(wealth.vars[i], other.vars)), imp_var =F)), names(wealth.vars))
 
@@ -107,23 +113,22 @@ asset.vars <- c("residence_value", "other_estate_value", "assets", "building_con
 liabilities.vars <- c("residence_debt", "other_estate_debt", "consumer_debt", "education_debt")
                  
 wealth.final <- wealth.final %>% 
-  mutate(net_wealth = rowSums(select(wealth.final, one_of(asset.vars)), na.rm = T)) %>% 
-  mutate(liabilities = rowSums(select(wealth.final, one_of(liabilities.vars)), na.rm = T)) %>% 
-  mutate(netwealth = net_wealth -liabilities) %>% 
-  mutate(lnnetwealth = log(1+net_wealth) - log(mean(1+net_wealth)))
+  mutate(asset = rowSums(select(wealth.final, one_of(asset.vars)), na.rm = T),
+         liabilities = rowSums(select(wealth.final, one_of(liabilities.vars)), na.rm = T),
+         netwealth = asset -liabilities)
 
 gg_miss_var(wealth.final, show_pct = TRUE)
-hist(wealth.final$lnnetwealth)
+hist(wealth.final$netwealth)
 summary(wealth.final$netwealth)
 
-targetvars <- c("pid","sex", "lnhhnetto", "lnwage_g", "educationjob", "total_inheritance",
+targetvars <- c("pid","sex", "lnhhnetto", "lnwage_g", "educationjob", "lninheritance",
                 "housedebt", "selfempl", "employed", "famstd", "age",
                 "lnorbis", "lmstatus", "hours_actual", "inherit_filter", "kidsu16",
-                "estate_income_value", "saving_value", "superior", "stillfirstemp",
-                "sqmtrs")
+                "lnestateinc", "lnsaving", "superior", "stillfirstemp",
+                "lnsqrmtrs", "lnjobduration")
 
 final <- select(mydata, one_of(targetvars)) 
-final <- left_join(final, select(wealth.final, one_of(c("pid", "netwealth", "lnnetwealth"))), by = "pid") %>% 
+final <- left_join(final, select(wealth.final, one_of(c("pid", "netwealth"))), by = "pid") %>% 
   select(-pid)
 gg_miss_var(final, show_pct = TRUE)
 final.imp <- VIM::kNN(final, imp_var = F)
@@ -135,6 +140,35 @@ multiple.imp <- left_join(full_join(wealth.final,filter.post, by="pid"), select(
 gg_miss_var(multiple.imp, show_pct = TRUE)
 multiple.imp<- VIM::kNN(multiple.imp, variable = targetvars, imp_var = F)
 gg_miss_var(multiple.imp, show_pct = TRUE)
+
+multiple.imp <- multiple.imp %>% 
+  select(-asset, -netwealth, -liabilities) 
+for (i in 1:ncol(multiple.imp)){
+  if (sum(is.na(multiple.imp[,i]) > 0)){
+    multiple.imp[,i] <- ifelse(is.na(multiple.imp[,i]), 0, multiple.imp[,i])
+  }
+}
+multiple.imp <- multiple.imp %>% 
+  mutate(lnresidence       = normalize.log(residence_value),
+         lnestate          = normalize.log(other_estate_value),
+         lnassets          = normalize.log(assets),
+         lnbuilding        = normalize.log(building_contract),
+         lnlife            = normalize.log(life_insure),
+         lnbusiness        = normalize.log(business_holdings),
+         lnvehicles        = normalize.log(vehicles),
+         lntangibles       = normalize.log(tangibles),
+         lnresidence_debt  = normalize.log(residence_debt),
+         lnestate_debt     = normalize.log(other_estate_debt),
+         lnconsumer_debt   = normalize.log(consumer_debt),
+         lnstudent_debt    = normalize.log(education_debt),
+         superior          = factor(superior, ordered = F),
+         stillfirstemp     = factor(stillfirstemp, ordered = F),
+         educ_high_job     = factor(ifelse(educationjob==4 | educationjob==3,1,0), ordered =F),
+         educ_voc_job      = factor(ifelse(educationjob==2,1,0), ordered =F))
+
+multiple.imp <- select(multiple.imp, -asset.vars, -liabilities.vars, -educationjob)
+
+
 
 # Bayesian Network for other estate:
   #make sure I have the same variables for BN as for MICE plus a couple more
@@ -154,24 +188,6 @@ gg_miss_var(multiple.imp, show_pct = TRUE)
 #                                                                 ifelse(is.na(estate_limits) & estate >= 1000000,5,estate_limits))))))
 
 
-#### mixed data types: DEAL package
-### make dummies and denote as factor!
-
-multiple.imp <- multiple.imp %>% 
-  mutate(superior = factor(superior, ordered = F)) %>% 
-  mutate(stillfirstemp = factor(stillfirstemp, ordered = F)) %>% 
-  mutate(fulltime = factor(ifelse(lmstatus==1,1,0), ordered =F)) %>% 
-  mutate(parttime = factor(ifelse(lmstatus==2,1,0), ordered =F)) %>% 
-  mutate(nonempl = factor(ifelse(lmstatus==3,1,0), ordered =F)) %>% 
-  mutate(married = factor(ifelse(famstd==2,1,0), ordered =F)) %>% 
-  mutate(single = factor(ifelse(famstd==1,1,0), ordered =F)) %>% 
-  mutate(div_wid = factor(ifelse(famstd==3 | famstd==4,1,0), ordered =F)) %>% 
-  mutate(education_high_job = factor(ifelse(educationjob==4 | educationjob==3,1,0), ordered =F)) %>% 
-  mutate(education_vocational_job = factor(ifelse(educationjob==2,1,0), ordered =F)) %>% 
-  select(-educationjob, -famstd, -lmstatus)
-  
-multiple.imp2 <- select(multiple.imp, -net_wealth, -netwealth, -liabilities, -lnnetwealth, -pid)  
-
 #apparently we don't necessarily need the deal package
 # for later reordering of the cpdag to dag: pdag2dag(x, ordering), or maybe node.ordering(x, debug = FALSE)
 # for prediction/impuatation: impute(object, data, method, ..., debug = FALSE)
@@ -183,43 +199,64 @@ multiple.imp2 <- select(multiple.imp, -net_wealth, -netwealth, -liabilities, -ln
 #          test = NULL, alpha = 0.05, B = NULL, max.sx = NULL, debug = FALSE)
 ### missing values unpractical: set to 0:
 
-residence.imp <- filter(multiple.imp2, owner == 1) %>% 
-  select(-filters2)
-for (i in 1:ncol(residence.imp)){
-  if (sum(is.na(residence.imp[,i]) > 0)){
-    residence.imp[,i] <- ifelse(is.na(residence.imp[,i]), 0, residence.imp[,i])
-  }
-}
 
-gg_miss_var(residence.imp, show_pct = TRUE)
+mi.list <- setNames(lapply(seq_along(c(asset.vars, liabilities.vars)), function(i) 
+  filter(multiple.imp, .data[[filters2[[i]]]] == 1)),nm=c(asset.vars, liabilities.vars)) 
+mi.list <- setNames(lapply(seq_along(filters2), function(k) 
+  mi.list[[k]][,-which(names(mi.list[[k]]) == filters2[k])]),nm=c(asset.vars, liabilities.vars)) 
+  
+gg_miss_var(mi.list$residence_value, show_pct = TRUE)
 
-structure1 <- hc(residence.imp, score = "loglik-cg")
-structure2 <- hc(residence.imp, score = "aic-cg")
-structure3 <- hc(residence.imp, score = "bic-cg")
+# whitelist the filter vars:
+#ln wealth components
 
+lnwealthvars <- c("lnresidence", "lnestate", "lnassets", "lnbuilding", "lnlife", "lnbusiness", "lnvehicles", "lntangibles",
+                  "lnresidence_debt", "lnestate_debt", "lnconsumer_debt", "lnstudent_debt")
 
-net <- deal::network(residence.imp)
-print(net)
-plot(net)
-
-prior <- jointprior(net)
-
-net <- deal::learn(net, residence.imp, prior)$nw
-
-best <- autosearch(net, residence.imp, prior, trace = T, removecycles = T)
+from <- filters2
+to <- lnwealthvars
+whitelist <- as.data.frame(cbind(from,to)) 
 
 
+structure <- setNames(lapply(seq_along(lnwealthvars), function(j) hc(mi.list[[j]][, -which(names(mi.list[[j]]) == "pid")],
+                 score = "loglik-cg", whitelist = whitelist[-j,])), nm=c(asset.vars, liabilities.vars))  
+#structure2 <- hc(residence.imp, score = "aic-cg")
+#structure3 <- hc(residence.imp, score = "bic-cg")
 
-bnlearn::parents(structure3, "consumer_debt")
+#### creating reproducable missing patterns: on full dataset multiple.imp 
+gg_miss_var(multiple.imp, show_pct = TRUE)
+# specify variable with missing patterns and different freq values
+mi.multiple.imp <- ampute(multiple.imp, prop = .7, mech = "MCAR")
+gg_miss_var(mi.multiple.imp$amp, show_pct = TRUE)
+
+
+
+
+
+#this only allows for ML estimation of the parameters at the nodes... go to STAN for more fancy stuff!
+fit = bn.fit(structure1, residence.imp)
+fit
+bn.fit.qqplot(fit$residence_value)
+
+bnlearn::mb(structure1, "lnassets")
 
 ggnet2(structure1$arcs, directed = TRUE,
        arrow.size = 9, arrow.gap = 0.025, label = T)
 
-ggnet2(structure2$arcs, directed = TRUE,
-       arrow.size = 9, arrow.gap = 0.025, label = T)
+with.missing.data <- residence.imp
+with.missing.data[sample(nrow(with.missing.data), 100), "residence_value"] = NA
 
-ggnet2(structure3$arcs, directed = TRUE,
-       arrow.size = 9, arrow.gap = 0.025, label = T)
+imputed = impute(fit, with.missing.data, method = "bayes-lw")
+
+
+
+
+
+
+
+
+
+
 
 
 #multiple.imp2 <- as.data.frame(multiple.imp2)
@@ -262,6 +299,15 @@ reliability <- order(reliability, decreasing = T)
 
 
 
+net <- deal::network(residence.imp)
+print(net)
+plot(net)
+
+prior <- jointprior(net)
+
+net <- deal::learn(net, residence.imp, prior)$nw
+
+best <- autosearch(net, residence.imp, prior, trace = T, removecycles = T)
 
 
 
