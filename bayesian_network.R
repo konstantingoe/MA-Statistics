@@ -225,10 +225,32 @@ structure <- setNames(lapply(seq_along(lnwealthvars), function(j) hc(mi.list[[j]
 
 #### creating reproducable missing patterns: on full dataset multiple.imp 
 gg_miss_var(multiple.imp, show_pct = TRUE)
-# specify variable with missing patterns and different freq values
-mi.multiple.imp <- ampute(multiple.imp, prop = .7, mech = "MCAR")
-gg_miss_var(mi.multiple.imp$amp, show_pct = TRUE)
 
+# goddamn patters!!! 
+
+# specify variable with missing patterns and different freq values
+mi.multiple.imp <- ampute(multiple.imp, prop = .9, mech = "MCAR")
+patterns <- mi.multiple.imp$patterns
+patterns <- rbind(patterns, )
+
+patterns <- mi.multiple.imp$patterns[1,]
+patterns[,1:ncol(patterns)] <- 0
+patterns[,1:14] <- 1 
+patterns$kidsu16 <- 1
+patterns$age <- 1
+patterns$inherit_filter <- 1
+patterns$lnorbis <- 1
+patterns <- patterns[which(rowSums(patterns)!=ncol(patterns)),]
+
+patterns <- vector()
+
+freq <- mi.multiple.imp$freq
+first <- seq(from = 0.05, to = 0.15, length.out = 10)
+freq <- c(first,1-sum(first))
+
+
+mi.multiple.imp <- ampute(multiple.imp, prop = .1, mech = "MCAR", patterns = patterns, bycases=F, freq = first)
+gg_miss_var(mi.multiple.imp$amp, show_pct = TRUE)
 
 
 

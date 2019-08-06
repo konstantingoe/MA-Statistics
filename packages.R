@@ -76,6 +76,7 @@ pacman::p_load(
   DMwR,
   arules,
   laeken,
+  missForest,
   sna,
   intergraph,
   scales,
