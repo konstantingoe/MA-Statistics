@@ -9,6 +9,19 @@ normalize.log <- function(x){
   }
 }
 
+#generate MCAR data from full dataset
+make.mcar <- function(data, p=0.5, cond = NULL){
+  rx <- rbinom(nrow(data), 1, 1-p)
+  data1 <- select(data, -cond)  
+  for (i in 1: ncol(data1)){
+    rx <- rbinom(nrow(data1), 1, 1-p)
+    data1[rx==0,i] <- NA
+  }
+  data <- cbind(select(data, one_of(cond)),data1)
+  return(data)
+}
+
+
 cos.F<-function(x,j){sqrt(2)*cos((j)*pi*x)}
 k.fct <- function(u){as.numeric(abs(u)<=1)*(1-u^2)*3/4}
 

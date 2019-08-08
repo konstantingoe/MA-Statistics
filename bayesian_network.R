@@ -224,33 +224,65 @@ structure <- setNames(lapply(seq_along(lnwealthvars), function(j) hc(mi.list[[j]
 #structure3 <- hc(residence.imp, score = "bic-cg")
 
 #### creating reproducable missing patterns: on full dataset multiple.imp 
-gg_miss_var(multiple.imp, show_pct = TRUE)
-
 # goddamn patters!!! 
+set.seed(12345)
 
 # specify variable with missing patterns and different freq values
-mi.multiple.imp <- ampute(multiple.imp, prop = .9, mech = "MCAR")
+mi.multiple.imp <- ampute(multiple.imp, prop = .1, mech = "MCAR")
 patterns <- mi.multiple.imp$patterns
-patterns <- rbind(patterns, )
-
-patterns <- mi.multiple.imp$patterns[1,]
-patterns[,1:ncol(patterns)] <- 0
+test <- -1*(patterns-1)
+patterns <- test
 patterns[,1:14] <- 1 
 patterns$kidsu16 <- 1
 patterns$age <- 1
 patterns$inherit_filter <- 1
 patterns$lnorbis <- 1
-patterns <- patterns[which(rowSums(patterns)!=ncol(patterns)),]
+patterns <- patterns[which(rowSums(patterns)!= 18),]  #ncol(patterns)),]
 
-patterns <- vector()
-
-freq <- mi.multiple.imp$freq
-first <- seq(from = 0.05, to = 0.15, length.out = 10)
+first <- seq(from = 0.001, to = 0.07, length.out = nrow(patterns)-1)
+sum(first)
 freq <- c(first,1-sum(first))
 
+cond.vector <- c(filters, "sex", "age", "kidsu16", "inherit_filter", "lnorbis")
 
-mi.multiple.imp <- ampute(multiple.imp, prop = .1, mech = "MCAR", patterns = patterns, bycases=F, freq = first)
-gg_miss_var(mi.multiple.imp$amp, show_pct = TRUE)
+mi.multiple.imp1 <- ampute(multiple.imp, prop = .1, mech = "MCAR", patterns = patterns, bycases=T) #, freq = freq)
+mi.multiple.imp2 <- ampute(multiple.imp, prop = .1, mech = "MAR", patterns = patterns, bycases=T) #, freq = freq)
+mi.multiple.imp3 <- ampute(multiple.imp, prop = .1, mech = "MAR", patterns = patterns, bycases=T) #, freq = freq)
+
+gg_miss_var(mi.multiple.imp1$amp, show_pct = TRUE)
+gg_miss_var(mi.multiple.imp2$amp, show_pct = TRUE)
+gg_miss_var(mi.multiple.imp3$amp, show_pct = TRUE)
+
+##### Redirect arcs according to reliability ####
+
+mi.list.withmissings <- setNames(lapply(seq_along(c(asset.vars, liabilities.vars)), function(i) 
+  filter(mi.multiple.imp1$amp, .data[[filters2[[i]]]] == 1)),nm=c(asset.vars, liabilities.vars)) 
+mi.list.withmissings <- setNames(lapply(seq_along(filters2), function(k) 
+  mi.list.withmissings[[k]][,-which(names(mi.list.withmissings[[k]]) == filters2[k])]),nm=c(asset.vars, liabilities.vars)) 
+
+
+reliability <- rev(miss_var_summary(mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], order = T)$variable)
+test <- structure$residence_value
+reverse.arc(test, from, to, check.cycles = TRUE, check.illegal = TRUE, debug = FALSE)
+
+# write routine, that checks each arc whether the arrow is pointing from the less reliable to the more
+# reliable node. If so, reverse arc and continue!
+
+arcs <- arcs(test)
+
+ggnet2(res$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+
+
+bnlearn::parents(structure$residence_value, "age")
+
+
+
+
+
+
+
+
 
 
 
