@@ -262,19 +262,78 @@ mi.list.withmissings <- setNames(lapply(seq_along(filters2), function(k)
 
 
 reliability <- rev(miss_var_summary(mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], order = T)$variable)
+rel_label <- miss_var_summary(mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], order = T)
 test <- structure$residence_value
-reverse.arc(test, from, to, check.cycles = TRUE, check.illegal = TRUE, debug = FALSE)
-
+test1 <- test
+a <- rel_label$pct_miss
+names(a) <- rel_label$variable
 # write routine, that checks each arc whether the arrow is pointing from the less reliable to the more
 # reliable node. If so, reverse arc and continue!
-
 arcs <- arcs(test)
 
-ggnet2(res$arcs, directed = TRUE,
+for (i in 1:nrow(arcs)){
+  if (paste("from", class(mi.list.withmissings$residence_valu[,arcs[i,1]]), "to", class(mi.list.withmissings$residence_valu[,arcs[i,2]])) == "from factor to numeric"){
+    print("do nothing")
+    } else if (a[arcs[i,1]] > a[arcs[i,2]]){
+    print("potentially reverse here")
+      test <- reverse.arc(test, arcs[i,1], arcs[i,2], check.cycles = F, check.illegal = TRUE, debug = F)
+    } else {
+    print("leave arcs unchanged")
+  }
+}
+
+### this does not produce the same equivalence class as we ignore v-strucures... go back to Di Zio and check 
+### what they've done
+
+bnlearn::parents(test, "lnresidence")
+bnlearn::parents(test1, "lnresidence")
+
+names <- names(mi.multiple.imp$data[,-which(names(mi.multiple.imp$data)=="pid" | names(mi.multiple.imp$data)=="owner")])
+as.vector(sapply(seq_along(names), function(s) all.equal(bnlearn::parents(test, names[s]),bnlearn::parents(test1, names[s]))))
+
+
+arcs4 <- matrix(nrow = 400, ncol = 2)
+for (i in 1:nrow(arcs)){
+  if (paste("from", class(mi.list.withmissings$residence_valu[,arcs[i,1]]), "to", class(mi.list.withmissings$residence_valu[,arcs[i,2]])) != "from factor to numeric"){
+    arcs4[i,] <- arcs[i,]
+  }
+}  
+arcs4 <- na.omit(arcs4)
+arcs5 <- paste(arcs4[,1], arcs4[,2])
+arcs3 <- reversible.arcs(test1)
+arcs6 <- paste(arcs3[,1], arcs3[,2])
+diff <-  setdiff(arcs5,arcs6)
+
+
+for (i in 1:nrow(arcs3)){
+    if (a[arcs3[i,1]] > a[arcs3[i,2]]){
+    print("potentially reverse here")
+    test3 <- reverse.arc(test, arcs3[i,1], arcs3[i,2], check.cycles = F, check.illegal = TRUE, debug = F)
+    } else {
+    print("leave arcs unchanged")
+  }
+}
+
+test <- sapply(1:nrow(arcs3), function(i) a[arcs3[i,1]] > a[arcs3[i,2]])
+test2 <- sapply(1:nrow(arcs4), function(i) a[arcs4[i,1]] > a[arcs4[i,2]])
+all.equal(test$arcs,test3$arcs)
+
+##### Alternative idea for reversal ####
+
+cpdag <- cpdag(test, moral = F)
+
+skel <- skeleton(test)
+vstructs(test)
+
+
+ggnet2(skel$arcs, directed = TRUE,
        arrow.size = 9, arrow.gap = 0.025, label = T)
 
 
 bnlearn::parents(structure$residence_value, "age")
+
+
+
 
 
 
