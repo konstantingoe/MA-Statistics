@@ -265,83 +265,121 @@ reliability <- rev(miss_var_summary(mi.list.withmissings$residence_value[,names(
 rel_label <- miss_var_summary(mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], order = T)
 test <- structure$residence_value
 test1 <- test
+test2 <- test
 a <- rel_label$pct_miss
 names(a) <- rel_label$variable
 # write routine, that checks each arc whether the arrow is pointing from the less reliable to the more
 # reliable node. If so, reverse arc and continue!
-arcs <- arcs(test)
 
+#First Method: 
+
+arcs <- reversible.arcs(test)
+sum <- NULL
 for (i in 1:nrow(arcs)){
-  if (paste("from", class(mi.list.withmissings$residence_valu[,arcs[i,1]]), "to", class(mi.list.withmissings$residence_valu[,arcs[i,2]])) == "from factor to numeric"){
-    print("do nothing")
-    } else if (a[arcs[i,1]] > a[arcs[i,2]]){
+  if (a[arcs[i,1]] > a[arcs[i,2]]){
     print("potentially reverse here")
       test <- reverse.arc(test, arcs[i,1], arcs[i,2], check.cycles = F, check.illegal = TRUE, debug = F)
+      sum[i] <- ifelse(i>0,1,0)
     } else {
     print("leave arcs unchanged")
   }
 }
 
-### this does not produce the same equivalence class as we ignore v-strucures... go back to Di Zio and check 
-### what they've done
-
-bnlearn::parents(test, "lnresidence")
-bnlearn::parents(test1, "lnresidence")
-
-names <- names(mi.multiple.imp$data[,-which(names(mi.multiple.imp$data)=="pid" | names(mi.multiple.imp$data)=="owner")])
-as.vector(sapply(seq_along(names), function(s) all.equal(bnlearn::parents(test, names[s]),bnlearn::parents(test1, names[s]))))
+logic <- NULL
+for (i in 1:nrow(arcsfinal)){
+  logic[i] <- a[test$arcs[i,1]] <= a[test$arcs[i,2]]
+}
 
 
-arcs4 <- matrix(nrow = 400, ncol = 2)
+#Second Method: 
+
+tst <- cpdag(test)
+tst1 <- cpdag(test1)  
+
+arcsdir <- directed.arcs(tst)
+arcs <- undirected.arcs(tst)
+arcs2 <- matrix(nrow = nrow(arcs), ncol = 2)
+
 for (i in 1:nrow(arcs)){
-  if (paste("from", class(mi.list.withmissings$residence_valu[,arcs[i,1]]), "to", class(mi.list.withmissings$residence_valu[,arcs[i,2]])) != "from factor to numeric"){
-    arcs4[i,] <- arcs[i,]
+  if (a[arcs[i,1]] == a[arcs[i,2]]){ 
+  arcs2[i,] <- arcs[i,]
   }
 }  
-arcs4 <- na.omit(arcs4)
-arcs5 <- paste(arcs4[,1], arcs4[,2])
-arcs3 <- reversible.arcs(test1)
-arcs6 <- paste(arcs3[,1], arcs3[,2])
-diff <-  setdiff(arcs5,arcs6)
-
-
-for (i in 1:nrow(arcs3)){
-    if (a[arcs3[i,1]] > a[arcs3[i,2]]){
-    print("potentially reverse here")
-    test3 <- reverse.arc(test, arcs3[i,1], arcs3[i,2], check.cycles = F, check.illegal = TRUE, debug = F)
-    } else {
-    print("leave arcs unchanged")
-  }
+arcs2 <- na.omit(arcs2)
+for (i in 1:nrow(arcs2)){
+  arcs2 <- arcs2[!(grepl(paste0("^",arcs2[i,2],"$"), arcs2[,1]) & grepl(paste0("^",arcs2[i,1],"$"), arcs2[,2])),]
 }
 
-test <- sapply(1:nrow(arcs3), function(i) a[arcs3[i,1]] > a[arcs3[i,2]])
-test2 <- sapply(1:nrow(arcs4), function(i) a[arcs4[i,1]] > a[arcs4[i,2]])
-all.equal(test$arcs,test3$arcs)
+arcs3 <- matrix(nrow = nrow(arcs), ncol = 2)
+for (i in 1:nrow(arcs)){
+  if (a[arcs[i,1]] < a[arcs[i,2]]){ 
+    arcs3[i,] <- arcs[i,]
+  }
+}  
+arcs3 <- na.omit(arcs3)
+arcsfinal <- rbind(arcsdir,arcs2,arcs3)
+test2$arcs <- arcsfinal
 
-##### Alternative idea for reversal ####
+logic2 <- NULL
+for (i in 1:nrow(arcsfinal)){
+  logic2[i] <- a[arcsfinal[i,1]] <= a[arcsfinal[i,2]]
+}
 
-cpdag <- cpdag(test, moral = F)
+#### Reversal done #####
 
-skel <- skeleton(test)
-vstructs(test)
+### Potentially ready for imputation: 
+
+#Lets first do MICE:
+
+imp <- mice(mi.list.withmissings$residence_value, maxit = 0, print=F)
+meth <- imp$method
+pred <- imp$predictorMatrix
+pred[,"pid"] <- 0
+pred["pid",] <- 0
+
+nomiss <- NULL
+for (i in 1:length(a)){
+  if (a[i]==0){
+    nomiss[i] <- names(a[i])
+  }
+}  
+nomiss <- na.omit(nomiss)
+
+pred[nomiss,] <- 0
+
+### potentially don't use pred but blocks and function calls!
+miss <- NULL
+for (i in 1:length(a)){
+  if (a[i]>0){
+    miss[i] <- names(a[i])
+  }
+}  
+miss <- na.omit(miss)
+blocks <- make.blocks(miss, calltype = "formula")
+formulas <- list("lnhhnetto"= lnhhnetto ~ other_estate + assets_filter + building_contract_filter + 
+                   life_insure_filter + business_holdings_filter + vehicles_filter + 
+                   tangibles_filter + residence_debt_filter + other_estate_debt_filter + 
+                   consumer_debt_filter + education_debt_filter + sex + lnhhnetto + 
+                   lnwage_g + lninheritance + housedebt + selfempl + employed + 
+                   famstd + age + lnorbis + lmstatus + hours_actual + inherit_filter + 
+                   kidsu16 + lnestateinc + lnsaving + superior + lnsqrmtrs + 
+                   lnjobduration + lnresidence + lnestate + lnassets + lnbuilding + 
+                   lnlife + lnbusiness + lnvehicles + lntangibles + lnresidence_debt + 
+                   lnestate_debt + lnconsumer_debt + lnstudent_debt + educ_high_job + 
+                   educ_voc_job)
+
+### now go back to Markus Imputation specification and retrieve models for each of the variables. 
 
 
-ggnet2(skel$arcs, directed = TRUE,
-       arrow.size = 9, arrow.gap = 0.025, label = T)
-
-
-bnlearn::parents(structure$residence_value, "age")
 
 
 
 
+mice.imp <- mice(mi.list.withmissings$residence_value, maxit = 30, predictorMatrix = pred ,print=F, seed=123)
+plot(mice.imp)
 
-
-
-
-
-
-
+stripplot(mice.imp)
+hell <- sapply(1:mice.imp$m, function(i) hellinger(mice.imp$imp$lnhhnetto[[i]], mi.list$residence_value$lnhhnetto))
 
 
 
@@ -360,8 +398,6 @@ with.missing.data <- residence.imp
 with.missing.data[sample(nrow(with.missing.data), 100), "residence_value"] = NA
 
 imputed = impute(fit, with.missing.data, method = "bayes-lw")
-
-
 
 
 
