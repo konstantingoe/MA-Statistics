@@ -21,6 +21,58 @@ make.mcar <- function(data, p=0.5, cond = NULL){
   return(data)
 }
 
+##### Reverse arcs #####
+
+#reversible.arcs just changing the arcs direction 
+arc.reversal <- function(object=object){
+  arcs <- reversible.arcs(object)
+  sum <- NULL
+  for (i in 1:nrow(arcs)){
+    if (reliability[arcs[i,1]] > reliability[arcs[i,2]]){
+      #print("potentially reverse here")
+      object <- reverse.arc(object, arcs[i,1], arcs[i,2], check.cycles = F, check.illegal = TRUE, debug = F)
+      sum[i] <- ifelse(i>0,1,0)
+    } 
+  }
+  print(paste0("Number of arcs redirected: ",sum(sum, na.rm = T)))
+  #return(object)
+} 
+
+#CPDAG approach with producing bn object
+arc.reversal2 <- function(object = object){
+  obj <- cpdag(object)
+  
+  arcsdir <- directed.arcs(obj)
+  arcsundir <- undirected.arcs(obj)
+  arcs <- matrix(nrow = nrow(arcsundir), ncol = 2)
+  
+  for (i in 1:nrow(arcsundir)){
+    if (reliability[arcsundir[i,1]] == reliability[arcsundir[i,2]]){ 
+      arcs[i,] <- arcsundir[i,]
+    }
+  }  
+  arcs <- na.omit(arcs)
+  for (i in 1:nrow(arcs)){
+    arcs <- try(arcs[!(grepl(paste0("^",arcs[i,2],"$"), arcs[,1]) & grepl(paste0("^",arcs[i,1],"$"), arcs[,2])),],silent =T)
+  }
+  
+  arcs1 <- matrix(nrow = nrow(arcsundir), ncol = 2)
+  for (i in 1:nrow(arcsundir)){
+    if (reliability[arcsundir[i,1]] < reliability[arcsundir[i,2]]){ 
+      arcs1[i,] <- arcsundir[i,]
+    }
+  }  
+  arcs1 <- na.omit(arcs1)
+  arcsfinal <- rbind(arcsdir,arcs,arcs1)
+  object$arcs <- arcsfinal
+  return(object)
+  
+  #logic2 <- NULL
+  #for (i in 1:nrow(arcsfinal)){
+  #  logic2[i] <- a[arcsfinal[i,1]] <= a[arcsfinal[i,2]]
+  #}
+}
+
 
 cos.F<-function(x,j){sqrt(2)*cos((j)*pi*x)}
 k.fct <- function(u){as.numeric(abs(u)<=1)*(1-u^2)*3/4}

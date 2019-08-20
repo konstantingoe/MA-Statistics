@@ -253,83 +253,83 @@ gg_miss_var(mi.multiple.imp1$amp, show_pct = TRUE)
 gg_miss_var(mi.multiple.imp2$amp, show_pct = TRUE)
 gg_miss_var(mi.multiple.imp3$amp, show_pct = TRUE)
 
-##### Redirect arcs according to reliability ####
+
+###### Decide whether I want to learn structure given missing values as well or just imputation with a given structure...
 
 mi.list.withmissings <- setNames(lapply(seq_along(c(asset.vars, liabilities.vars)), function(i) 
   filter(mi.multiple.imp1$amp, .data[[filters2[[i]]]] == 1)),nm=c(asset.vars, liabilities.vars)) 
 mi.list.withmissings <- setNames(lapply(seq_along(filters2), function(k) 
   mi.list.withmissings[[k]][,-which(names(mi.list.withmissings[[k]]) == filters2[k])]),nm=c(asset.vars, liabilities.vars)) 
 
+#### BN Imputation algorithm ####
+# not yet possible, because the predict function is dead 
+##### Redirect arcs according to reliability ####
 
-reliability <- rev(miss_var_summary(mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], order = T)$variable)
+
+
 rel_label <- miss_var_summary(mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], order = T)
-test <- structure$residence_value
-test1 <- test
-test2 <- test
-a <- rel_label$pct_miss
-names(a) <- rel_label$variable
+reliability <- rel_label$pct_miss
+names(reliability) <- rel_label$variable
+
 # write routine, that checks each arc whether the arrow is pointing from the less reliable to the more
 # reliable node. If so, reverse arc and continue!
 
 #First Method: 
-
-arcs <- reversible.arcs(test)
-sum <- NULL
-for (i in 1:nrow(arcs)){
-  if (a[arcs[i,1]] > a[arcs[i,2]]){
-    print("potentially reverse here")
-      test <- reverse.arc(test, arcs[i,1], arcs[i,2], check.cycles = F, check.illegal = TRUE, debug = F)
-      sum[i] <- ifelse(i>0,1,0)
-    } else {
-    print("leave arcs unchanged")
-  }
-}
-
-logic <- NULL
-for (i in 1:nrow(arcsfinal)){
-  logic[i] <- a[test$arcs[i,1]] <= a[test$arcs[i,2]]
-}
-
-
+try <- structure$residence_value
+arc.reversal(object = try)
 #Second Method: 
+try1 <- arc.reversal2(object = structure$residence_value)
 
-tst <- cpdag(test)
-tst1 <- cpdag(test1)  
-
-arcsdir <- directed.arcs(tst)
-arcs <- undirected.arcs(tst)
-arcs2 <- matrix(nrow = nrow(arcs), ncol = 2)
-
-for (i in 1:nrow(arcs)){
-  if (a[arcs[i,1]] == a[arcs[i,2]]){ 
-  arcs2[i,] <- arcs[i,]
-  }
-}  
-arcs2 <- na.omit(arcs2)
-for (i in 1:nrow(arcs2)){
-  arcs2 <- arcs2[!(grepl(paste0("^",arcs2[i,2],"$"), arcs2[,1]) & grepl(paste0("^",arcs2[i,1],"$"), arcs2[,2])),]
-}
-
-arcs3 <- matrix(nrow = nrow(arcs), ncol = 2)
-for (i in 1:nrow(arcs)){
-  if (a[arcs[i,1]] < a[arcs[i,2]]){ 
-    arcs3[i,] <- arcs[i,]
-  }
-}  
-arcs3 <- na.omit(arcs3)
-arcsfinal <- rbind(arcsdir,arcs2,arcs3)
-test2$arcs <- arcsfinal
-
-logic2 <- NULL
-for (i in 1:nrow(arcsfinal)){
-  logic2[i] <- a[arcsfinal[i,1]] <= a[arcsfinal[i,2]]
-}
-
-#### Reversal done #####
 
 ### Potentially ready for imputation: 
+#------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------#
+############################################## BNimp #############################################
+#------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------#
 
-#Lets first do MICE:
+
+#this only allows for ML estimation of the parameters at the nodes... go to STAN for more fancy stuff!
+fit <-  bnlearn::bn.fit(test2, mi.list$residence_value[,names(mi.list$residence_value) != "pid"])
+fit$lnresidence
+bn.fit.qqplot(fit$lnresidence)
+
+bnlearn::mb(test2, "lnresidence")
+
+ggnet2(test2$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+
+imputed <- bnlearn::impute(fit, mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], method = "bayes-lw")
+
+imputed2 <- bnlearn::predict.bn.fit(fit, node = "stillfirstemp", data = mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], method = "parents")
+#bnlearn::mb(test2, "stillfirstemp")
+
+ks.test(imputed$lnresidence, mi.list$residence_value$lnresidence)
+summary(imputed$lnresidence)
+summary(mi.list$residence_value$lnresidence)
+
+p1 <- ggplot(data = imputed, aes(x=lnresidence))+
+  geom_density(fill = "gold", alpha = .6) +
+  # Change the fill colour to differentiate it
+  geom_density(data=mi.list$residence_value, fill="#52854C", alpha = .6) +
+  labs(title = "Density of log of market value of primary residence")+
+  labs(y="Density")+
+  labs(x="log(residence value)")
+p1
+
+
+
+
+
+#------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------#
+############################################## MICE ##############################################
+#------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------#
 
 imp <- mice(mi.list.withmissings$residence_value, maxit = 0, print=F)
 meth <- imp$method
@@ -374,35 +374,7 @@ hell <- sapply(1:mice.imp$m, function(i) hellinger(mice.imp$imp$lnhhnetto[[i]], 
 
 
 
-#this only allows for ML estimation of the parameters at the nodes... go to STAN for more fancy stuff!
-fit <-  bn.fit(test2, mi.list$residence_value[,names(mi.list$residence_value) != "pid"])
-fit$lnresidence
-bn.fit.qqplot(fit$residence_value)
 
-bnlearn::mb(test2, "lnresidence")
-
-ggnet2(test2$arcs, directed = TRUE,
-       arrow.size = 9, arrow.gap = 0.025, label = T)
-
-imputed <- bnlearn::impute(fit, mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], method = "bayes-lw")
-
-imputed2 <- predict.bn.fit(fit, node = "stillfirstemp", data = mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], method = "parents")
-bnlearn::mb(test2, "stillfirstemp")
-
-
-hell2 <- hellinger(imputed$lnresidence, mi.list$residence_value$lnresidence)
-ks.test(imputed$lnresidence, mi.list$residence_value$lnresidence)
-summary(imputed$lnresidence)
-summary(mi.list$residence_value$lnresidence)
-
-p1 <- ggplot(data = imputed, aes(x=lnresidence))+
-  geom_density(fill = "gold", alpha = .6) +
-  # Change the fill colour to differentiate it
-  geom_density(data=mi.list$residence_value, fill="#52854C", alpha = .6) +
-  labs(title = "Density of log of market value of primary residence")+
-  labs(y="Density")+
-  labs(x="log(residence value)")
-p1
 
 #multiple.imp2 <- as.data.frame(multiple.imp2)
 for (i in 1:ncol(multiple.imp2)){
