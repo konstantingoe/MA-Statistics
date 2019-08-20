@@ -334,20 +334,12 @@ for (i in 1:nrow(arcsfinal)){
 imp <- mice(mi.list.withmissings$residence_value, maxit = 0, print=F)
 meth <- imp$method
 pred <- imp$predictorMatrix
-pred[,"pid"] <- 0
-pred["pid",] <- 0
 
-nomiss <- NULL
-for (i in 1:length(a)){
-  if (a[i]==0){
-    nomiss[i] <- names(a[i])
-  }
-}  
-nomiss <- na.omit(nomiss)
-
-pred[nomiss,] <- 0
-
-### potentially don't use pred but blocks and function calls!
+indepvars.all <- c("kidsu16", "sex", "educ_high_job", "educ_voc_job", "lnwage_g",
+                   "lnhhnetto", "lninheritance", "inherit_filter", "lnsaving", "superior",
+                   "selfempl", "employed", "famstd", "age", "hours_actual", "lnjobduration",
+                   "lnestateinc", "stillfirstemp")
+pred[,] <- 0
 miss <- NULL
 for (i in 1:length(a)){
   if (a[i]>0){
@@ -355,27 +347,25 @@ for (i in 1:length(a)){
   }
 }  
 miss <- na.omit(miss)
-blocks <- make.blocks(miss, calltype = "formula")
-formulas <- list("lnhhnetto"= lnhhnetto ~ other_estate + assets_filter + building_contract_filter + 
-                   life_insure_filter + business_holdings_filter + vehicles_filter + 
-                   tangibles_filter + residence_debt_filter + other_estate_debt_filter + 
-                   consumer_debt_filter + education_debt_filter + sex + lnhhnetto + 
-                   lnwage_g + lninheritance + housedebt + selfempl + employed + 
-                   famstd + age + lnorbis + lmstatus + hours_actual + inherit_filter + 
-                   kidsu16 + lnestateinc + lnsaving + superior + lnsqrmtrs + 
-                   lnjobduration + lnresidence + lnestate + lnassets + lnbuilding + 
-                   lnlife + lnbusiness + lnvehicles + lntangibles + lnresidence_debt + 
-                   lnestate_debt + lnconsumer_debt + lnstudent_debt + educ_high_job + 
-                   educ_voc_job)
+for (i in 1:length(miss)){
+  pred[miss[i], indepvars.all[indepvars.all != miss[i]]] <- 1
+}
 
-### now go back to Markus Imputation specification and retrieve models for each of the variables. 
+for (i in 1:length(lnwealthvars)){
+  pred[lnwealthvars[i], indepvars.all[indepvars.all != lnwealthvars[i]]] <- 1
+  pred[lnwealthvars[i], "lnorbis"] <- 1
+  
+}
 
+pred["lninheritance", c("lntangibles", "housedebt", "lnresidence", "lnestate", "lnestateinc")] <- 1
+pred["housedebt", c("lnresidence", "lnestate", "lnsqrmtrs", "lnbuilding", "lnestateinc")] <- 1
+pred["lnresidence", c("lnsqrmtrs", "housedebt", "lnestateinc")] <- 1
+pred["lnestate", c("lnsqrmtrs", "housedebt", "lnestateinc")] <- 1
+pred["lnestateinc", c("lnresidence", "lnestate", "lnsqrmtrs", "lnbuilding")] <- 1
+pred["lnresidence_debt", c("lnsqrmtrs", "housedebt", "lnestateinc")] <- 1
+pred["lnestate_debt", c("lnsqrmtrs", "housedebt", "lnestateinc")] <- 1
 
-
-
-
-
-mice.imp <- mice(mi.list.withmissings$residence_value, maxit = 30, predictorMatrix = pred ,print=F, seed=123)
+mice.imp <- mice(mi.list.withmissings$residence_value, maxit = 15, predictorMatrix = pred ,print=F, seed=123)
 plot(mice.imp)
 
 stripplot(mice.imp)
@@ -385,28 +375,34 @@ hell <- sapply(1:mice.imp$m, function(i) hellinger(mice.imp$imp$lnhhnetto[[i]], 
 
 
 #this only allows for ML estimation of the parameters at the nodes... go to STAN for more fancy stuff!
-fit = bn.fit(structure1, residence.imp)
-fit
+fit <-  bn.fit(test2, mi.list$residence_value[,names(mi.list$residence_value) != "pid"])
+fit$lnresidence
 bn.fit.qqplot(fit$residence_value)
 
-bnlearn::mb(structure1, "lnassets")
+bnlearn::mb(test2, "lnresidence")
 
-ggnet2(structure1$arcs, directed = TRUE,
+ggnet2(test2$arcs, directed = TRUE,
        arrow.size = 9, arrow.gap = 0.025, label = T)
 
-with.missing.data <- residence.imp
-with.missing.data[sample(nrow(with.missing.data), 100), "residence_value"] = NA
+imputed <- bnlearn::impute(fit, mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], method = "bayes-lw")
 
-imputed = impute(fit, with.missing.data, method = "bayes-lw")
-
-
+imputed2 <- predict.bn.fit(fit, node = "stillfirstemp", data = mi.list.withmissings$residence_value[,names(mi.list.withmissings$residence_value) != "pid"], method = "parents")
+bnlearn::mb(test2, "stillfirstemp")
 
 
+hell2 <- hellinger(imputed$lnresidence, mi.list$residence_value$lnresidence)
+ks.test(imputed$lnresidence, mi.list$residence_value$lnresidence)
+summary(imputed$lnresidence)
+summary(mi.list$residence_value$lnresidence)
 
-
-
-
-
+p1 <- ggplot(data = imputed, aes(x=lnresidence))+
+  geom_density(fill = "gold", alpha = .6) +
+  # Change the fill colour to differentiate it
+  geom_density(data=mi.list$residence_value, fill="#52854C", alpha = .6) +
+  labs(title = "Density of log of market value of primary residence")+
+  labs(y="Density")+
+  labs(x="log(residence value)")
+p1
 
 #multiple.imp2 <- as.data.frame(multiple.imp2)
 for (i in 1:ncol(multiple.imp2)){
