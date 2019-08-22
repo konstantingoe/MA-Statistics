@@ -290,6 +290,28 @@ try1 <- arc.reversal2(object = structure$residence_value)
 #------------------------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------------------------#
 
+### Structure learning using Structural EM algorithm:
+
+### diy:
+
+# initialise an empty BN 
+bn = bn.fit(empty.graph(names(mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"])), mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"])
+# three iterations of structural EM.
+for (i in 1:5) {
+  # expectation step.
+  imputed = bnlearn::impute(bn, mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"], method = "bayes-lw")
+  # maximisation step (forcing LAT to be connected to the other nodes).
+  dag = hc(imputed, whitelist = whitelist[-1,],score = "loglik-cg")
+  bn  = bn.fit(dag, imputed, method = "mle")
+}
+
+bnlearn::compare(cpdag(dag), cpdag(structure$residence_value))
+
+
+#try on pc at DIW
+mi.structure <- structural.em(mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"], maximize = "hc",
+                              fit = "mle", maximize.args = list(score = "loglik-cg", whitelist = whitelist[-1,]) , impute = "parents", max.iter = 2) 
+
 
 #this only allows for ML estimation of the parameters at the nodes... go to STAN for more fancy stuff!
 fit <-  bnlearn::bn.fit(test2, mi.list$residence_value[,names(mi.list$residence_value) != "pid"])
@@ -309,6 +331,7 @@ imputed2 <- bnlearn::predict.bn.fit(fit, node = "stillfirstemp", data = mi.list.
 ks.test(imputed$lnresidence, mi.list$residence_value$lnresidence)
 summary(imputed$lnresidence)
 summary(mi.list$residence_value$lnresidence)
+hell <- hellinger(imputed$lnresidence, mi.list$residence_value$lnresidence)
 
 p1 <- ggplot(data = imputed, aes(x=lnresidence))+
   geom_density(fill = "gold", alpha = .6) +
