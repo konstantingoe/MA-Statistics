@@ -297,7 +297,7 @@ try1 <- arc.reversal2(object = structure$residence_value)
 # initialise an empty BN 
 bn = bn.fit(empty.graph(names(mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"])), mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"])
 # three iterations of structural EM.
-for (i in 1:5) {
+for (i in 1:10) {
   # expectation step.
   imputed = bnlearn::impute(bn, mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"], method = "bayes-lw")
   # maximisation step (forcing LAT to be connected to the other nodes).
@@ -310,7 +310,7 @@ bnlearn::compare(cpdag(dag), cpdag(structure$residence_value))
 
 #try on pc at DIW
 mi.structure <- structural.em(mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"], maximize = "hc",
-                              fit = "mle", maximize.args = list(score = "loglik-cg", whitelist = whitelist[-1,]) , impute = "parents", max.iter = 2) 
+                              fit = "mle", maximize.args = list(score = "loglik-cg", whitelist = whitelist[-1,]) , impute = "bayes-lw", max.iter = 10) 
 
 
 #this only allows for ML estimation of the parameters at the nodes... go to STAN for more fancy stuff!
