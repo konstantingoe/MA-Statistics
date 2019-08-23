@@ -313,6 +313,24 @@ mi.structure <- structural.em(mi.list.withmissings$residence_value[,names(mi.lis
                               fit = "mle", maximize.args = list(score = "loglik-cg", whitelist = whitelist[-1,]) , impute = "bayes-lw", max.iter = 10) 
 
 
+### ok engage into cpquery and cpdist in order to retrieve imputation values:
+
+dagrev <- arc.reversal2(object = dag)
+
+imp.reliability <- sort(reliability[reliability>0], decreasing = F)
+parents <- bnlearn::parents(dagrev, names(imp.reliability)[1])
+
+data <- mi.list.withmissings$residence_value[is.na(mi.list.withmissings$residence_value[,names(imp.reliability[1])]),parents]
+data <- data[1,!sapply(data,function(x) any(is.na(x)))]
+
+listtest <- setNames(lapply(1:ncol(data) - sum(is.na(data[1,])), function(i) data[1,i]), nm=names(data))
+
+test <- bnlearn::cpdist(bn, nodes = names(imp.reliability)[1], evidence = listtest, method = "lw")
+
+testsample <- sample(na.omit(test)[[1]], 1)
+
+
+
 #this only allows for ML estimation of the parameters at the nodes... go to STAN for more fancy stuff!
 fit <-  bnlearn::bn.fit(test2, mi.list$residence_value[,names(mi.list$residence_value) != "pid"])
 fit$lnresidence
