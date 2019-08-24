@@ -316,18 +316,36 @@ mi.structure <- structural.em(mi.list.withmissings$residence_value[,names(mi.lis
 ### ok engage into cpquery and cpdist in order to retrieve imputation values:
 
 dagrev <- arc.reversal2(object = dag)
+bn  = bn.fit(dagrev, imputed, method = "mle")
+
 
 imp.reliability <- sort(reliability[reliability>0], decreasing = F)
 parents <- bnlearn::parents(dagrev, names(imp.reliability)[1])
 
 data <- mi.list.withmissings$residence_value[is.na(mi.list.withmissings$residence_value[,names(imp.reliability[1])]),parents]
-data <- data[1,!sapply(data,function(x) any(is.na(x)))]
+test <- NULL
+for (j in 1:nrow(data)){
+  data1 <- data[j,]
+  data2 <- data1[,!apply(data1,2,function(x) any(is.na(x)))]
+  listtest <- setNames(lapply(1:ncol(data2), function(i) data2[,i]), nm=names(data2))
+  test[j] <- bnlearn::cpdist(bn, nodes = names(imp.reliability)[1], evidence = listtest, method = "lw")
+  #testsample[j] <- sample(na.omit(test$stillfirstemp), 1)
+}
+testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))
+data[names(imp.reliability)[1]] <- testsample
 
-listtest <- setNames(lapply(1:ncol(data) - sum(is.na(data[1,])), function(i) data[1,i]), nm=names(data))
+mi.list.withmissings$residence_value[,names(imp.reliability[1])][is.na(mi.list.withmissings$residence_value[,names(imp.reliability[1])])] <- testsample
 
-test <- bnlearn::cpdist(bn, nodes = names(imp.reliability)[1], evidence = listtest, method = "lw")
 
-testsample <- sample(na.omit(test)[[1]], 1)
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
 
 
