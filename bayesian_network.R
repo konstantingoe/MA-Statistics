@@ -169,6 +169,98 @@ multiple.imp <- multiple.imp %>%
 multiple.imp <- select(multiple.imp, -asset.vars, -liabilities.vars, -educationjob)
 
 
+tryfull <- hc(multiple.imp[, -which(names(multiple.imp) == "pid")], whitelist = whitelist, score = "bic-cg")
+ggnet2(tryfull$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+
+set.seed(1234)
+trymiss <- make.mcar(multiple.imp, p=.1, cond = cond.vector)
+
+gg_miss_var(trymiss, show_pct = TRUE)
+for (i in 1:length(lnwealthvars)){
+  trymiss[,lnwealthvars[i]] <- ifelse(is.na(trymiss[,lnwealthvars[i]]) & multiple.imp[,lnwealthvars[i]] == min(multiple.imp[,lnwealthvars[i]]), min(multiple.imp[,lnwealthvars[i]]), trymiss[,lnwealthvars[i]])
+}
+gg_miss_var(trymiss, show_pct = TRUE)
+
+rel_label <- miss_var_summary(trymiss[,names(trymiss) != "pid"], order = T)
+reliability <- rel_label$pct_miss
+names(reliability) <- rel_label$variable
+
+# initialise an empty BN 
+bn = bn.fit(empty.graph(names(trymiss[,names(trymiss) != "pid"])), trymiss[,names(trymiss) != "pid"])
+# three iterations of structural EM.
+for (i in 1:5) {
+  # expectation step.
+  imputed = bnlearn::impute(bn, trymiss[,names(trymiss) != "pid"], method = "bayes-lw")
+  # maximisation step (forcing LAT to be connected to the other nodes).
+  dag = hc(imputed, whitelist = whitelist,score = "bic-cg")
+  bn  = bn.fit(dag, imputed, method = "mle")
+}
+
+unlist(bnlearn::compare(cpdag(dag), cpdag(tryfull)))
+
+try <- dag
+arc.reversal(object = try)
+
+ggnet2(try$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+bn  = bn.fit(try, imputed, method = "mle")
+
+
+#write loop for first imputation by parents:
+imp.reliability <- sort(reliability[reliability>0], decreasing = F)
+gg_miss_var(trymiss, show_pct = TRUE)
+
+testing <- trymiss
+for (k in 1:length(imp.reliability)){
+  parents <- bnlearn::parents(bn, names(imp.reliability)[k])
+  if (length(parents) == 0){
+  data <- trymiss[is.na(trymiss[,names(imp.reliability[k])]),]
+  test <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
+  testsample <- dplyr::sample_n(na.omit(test), nrow(data), replace = T)
+  } else {
+  data <- trymiss[is.na(trymiss[,names(imp.reliability[k])]),parents]
+  data <- as.data.frame(data) 
+  test <- NULL
+  for (j in 1:nrow(data)){
+    if (ncol(data)>1){
+    data1 <- data[j,]
+    data2 <- as.data.frame(data1[,!apply(data1,2,function(x) any(is.na(x)))])
+    names(data2) <- colnames(data1)[apply(!is.na(data1), 2, any)]
+    if (ncol(data2)==0){
+      test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
+    } else if (ncol(data2)>1){
+      listtest <- setNames(lapply(1:ncol(data2), function(i) data2[,i]), nm=names(data2))
+      test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+    } else {
+      listtest <- setNames(list(parents = as.character(data2[1,])), nm = names(data2))
+      test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+    }
+    #test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+    } else {
+    names(data) <- parents[1]
+    listtest <- setNames(list(parents = as.character(data[1,])), nm = names(data))
+    test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+    }
+   }
+  testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))
+  }
+  data[names(imp.reliability)[k]] <- testsample
+  testing[,names(imp.reliability[k])][is.na(testing[,names(imp.reliability[k])])] <- data[,names(imp.reliability)[k]]
+}
+
+gg_miss_var(testing, show_pct = TRUE)
+
+
+
+
+hellinger(testing$lnhhnetto,multiple.imp$lnhhnetto)
+hellinger(imputed$lnhhnetto,multiple.imp$lnhhnetto)
+
+tab <- table(testing$employed,multiple.imp$employed)
+1-sum(diag(tab))/sum(tab)
+
+
 
 # Bayesian Network for other estate:
   #make sure I have the same variables for BN as for MICE plus a couple more
@@ -277,9 +369,6 @@ names(reliability) <- rel_label$variable
 #First Method: 
 try <- structure$residence_value
 arc.reversal(object = try)
-#Second Method: 
-try1 <- arc.reversal2(object = structure$residence_value)
-
 
 ### Potentially ready for imputation: 
 #------------------------------------------------------------------------------------------------#
@@ -297,7 +386,7 @@ try1 <- arc.reversal2(object = structure$residence_value)
 # initialise an empty BN 
 bn = bn.fit(empty.graph(names(mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"])), mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"])
 # three iterations of structural EM.
-for (i in 1:10) {
+for (i in 1:5) {
   # expectation step.
   imputed = bnlearn::impute(bn, mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"], method = "bayes-lw")
   # maximisation step (forcing LAT to be connected to the other nodes).
@@ -309,35 +398,46 @@ bnlearn::compare(cpdag(dag), cpdag(structure$residence_value))
 
 
 #try on pc at DIW
-mi.structure <- structural.em(mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"], maximize = "hc",
-                              fit = "mle", maximize.args = list(score = "loglik-cg", whitelist = whitelist[-1,]) , impute = "bayes-lw", max.iter = 10) 
+#mi.structure <- structural.em(mi.list.withmissings$residence_value[,names(mi.list$residence_value) != "pid"], maximize = "hc",
+#                              fit = "mle", maximize.args = list(score = "loglik-cg", whitelist = whitelist[-1,]) , impute = "bayes-lw", max.iter = 10) 
 
 
 ### ok engage into cpquery and cpdist in order to retrieve imputation values:
 
-dagrev <- arc.reversal2(object = dag)
-bn  = bn.fit(dagrev, imputed, method = "mle")
+dagtest <- dag 
+arc.reversal(object = dagtest)
 
+ggnet2(dagtest$arcs, directed = TRUE,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+bn  = bn.fit(dagtest, imputed, method = "mle")
 
+#write loop for first imputation by parents:
 imp.reliability <- sort(reliability[reliability>0], decreasing = F)
-parents <- bnlearn::parents(dagrev, names(imp.reliability)[1])
+gg_miss_var(mi.list.withmissings$residence_value, show_pct = TRUE)
 
-data <- mi.list.withmissings$residence_value[is.na(mi.list.withmissings$residence_value[,names(imp.reliability[1])]),parents]
-test <- NULL
-for (j in 1:nrow(data)){
-  data1 <- data[j,]
-  data2 <- data1[,!apply(data1,2,function(x) any(is.na(x)))]
-  listtest <- setNames(lapply(1:ncol(data2), function(i) data2[,i]), nm=names(data2))
-  test[j] <- bnlearn::cpdist(bn, nodes = names(imp.reliability)[1], evidence = listtest, method = "lw")
-  #testsample[j] <- sample(na.omit(test$stillfirstemp), 1)
-}
-testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))
-data[names(imp.reliability)[1]] <- testsample
-
-mi.list.withmissings$residence_value[,names(imp.reliability[1])][is.na(mi.list.withmissings$residence_value[,names(imp.reliability[1])])] <- testsample
-
-
+#for (k in 1:length(imp.reliability)){
+  for (k in 1:15){
+    
+  parents <- bnlearn::parents(bn, names(imp.reliability)[k])
   
+  data <- mi.list.withmissings$residence_value[is.na(mi.list.withmissings$residence_value[,names(imp.reliability[k])]),parents]
+  test <- NULL
+  for (j in 1:nrow(data)){
+    data1 <- data[j,]
+    data2 <- data1[,!apply(data1,2,function(x) any(is.na(x)))]
+    listtest <- setNames(lapply(1:ncol(data2), function(i) data2[,i]), nm=names(data2))
+    test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+    #testsample[j] <- sample(na.omit(test$stillfirstemp), 1)
+  }
+  testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))
+  data[names(imp.reliability)[k]] <- testsample
+  mi.list.withmissings$residence_value[,names(imp.reliability[k])][is.na(mi.list.withmissings$residence_value[,names(imp.reliability[k])])] <- testsample
+}
+
+hellinger(mi.list.withmissings$residence_value$lnbuilding,mi.list$residence_value$lnbuilding)
+
+tab <- table(mi.list.withmissings$residence_value$employed, mi.list$residence_value$employed)
+1-sum(diag(tab))/sum(tab)
   
   
   
