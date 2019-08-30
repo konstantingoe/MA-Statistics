@@ -74,6 +74,72 @@ arc.reversal2 <- function(object = object){
 }
 
 
+############################################################################################################ 
+############################################################################################################ 
+############################################################################################################ 
+############################################################################################################ 
+############################################################################################################ 
+
+#### BN-imputation by parents function ####
+
+bn.parents.imp <- function(bn=bn, dat=dat, seed = seed){
+  set.seed(seed)
+  rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
+  reliability <- rel_label$pct_miss
+  names(reliability) <- rel_label$variable
+  imp.reliability <- sort(reliability[reliability>0], decreasing = F)
+  for (k in 1:length(imp.reliability)){
+    parents <- bnlearn::parents(bn, names(imp.reliability)[k])
+    if (length(parents) == 0){
+      data <- dat[is.na(dat[,names(imp.reliability[k])]),]
+      test <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
+      testsample <- dplyr::sample_n(na.omit(test), nrow(data), replace = T)
+    } else {
+      data <- dat[is.na(dat[,names(imp.reliability[k])]),parents]
+      data <- as.data.frame(data) 
+      test <- NULL
+      for (j in 1:nrow(data)){
+        if (ncol(data)>1){
+          data1 <- data[j,]
+          data2 <- as.data.frame(data1[,!apply(data1,2,function(x) any(is.na(x)))])
+          names(data2) <- colnames(data1)[apply(!is.na(data1), 2, any)]
+          if (ncol(data2)==0){
+            test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
+          } else if (ncol(data2)>1){
+            listtest <- setNames(lapply(1:ncol(data2), function(i) data2[,i]), nm=names(data2))
+            test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+          } else {
+            listtest <- setNames(list(parents = as.character(data2[1,])), nm = names(data2))
+            test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+          }
+        } else {
+          names(data) <- parents[1]
+          listtest <- setNames(list(parents = as.character(data[1,])), nm = names(data))
+          test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+        }
+      }
+      testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))
+    }
+    data[names(imp.reliability)[k]] <- testsample
+    dat[,names(imp.reliability[k])][is.na(dat[,names(imp.reliability[k])])] <- data[,names(imp.reliability)[k]]
+  }
+  return(dat)
+}
+
+############################################################################################################ 
+############################################################################################################ 
+
+
+
+
+
+
+
+
+
+
+
+
 cos.F<-function(x,j){sqrt(2)*cos((j)*pi*x)}
 k.fct <- function(u){as.numeric(abs(u)<=1)*(1-u^2)*3/4}
 
