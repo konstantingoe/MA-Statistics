@@ -13,6 +13,51 @@ mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
 ##### Filter Imputation
 
 
+# mydata <- mydata %>% 
+#   mutate(owner                           = factor(owner),
+#          other_estate                    = factor(other_estate),
+#          assets_filter                   = factor(assets_filter),
+#          building_contract_filter        = factor(building_contract_filter),
+#          life_insure_filter              = factor(life_insure_filter),
+#          business_holdings_filter        = factor(business_holdings_filter),
+#          vehicles_filter                 = factor(vehicles_filter), 
+#          tangibles_filter                = factor(tangibles_filter),
+#          residence_debt_filter           = factor(residence_debt_filter),
+#          other_estate_debt_filter        = factor(other_estate_debt_filter),
+#          consumer_debt_filter            = factor(consumer_debt_filter),
+#          education_debt_filter           = factor(education_debt_filter),
+#          lmstatus                        = factor(lmstatus),
+#          sex                             = factor(sex),
+#          famstd                          = factor(famstd),
+#          inherit_filter                  = factor(inherit_filter),
+#          selfempl                        = factor(selfempl),
+#          kidsu16                         = factor(kidsu16),
+#          livingcond                      = factor(livingcond, ordered = T),
+#          education                       = factor(education, ordered = T),
+#          job_training                    = factor(job_training),
+#          compsize                        = factor(compsize, ordered = T),
+#          superior                        = factor(superior),
+#          overtime                        = factor(overtime, ordered = T),
+#          second_empl                     = factor(second_empl),
+#          citizen                         = factor(citizen),
+#          schoolingF                      = factor(schoolingF, ordered = T),
+#          schoolingM                      = factor(schoolingM, ordered = T),
+#          trainingF                       = factor(trainingF, ordered = T),
+#          trainingM                       = factor(trainingM, ordered = T),
+#          hhtyp                           = factor(hhtyp),
+#          livingcond                      = factor(livingcond, ordered = T),
+#          housecond                       = factor(housecond, ordered = T),
+#          lnsqrmtrs                       = normalize.log(sqmtrs),
+#          lnsaving                        = normalize.log(saving_value),
+#          lnhhnetto                       = normalize.log(hhnetto),
+#          lninheritance                   = normalize.log(total_inheritance),
+#          lnorbis                         = normalize.log(orbis_wealth),
+#          lnwage_g                        = normalize.log(wage_gross_m),
+#          lnwage_n                        = normalize.log(wage_net_m),
+#          lnjobduration                   = normalize.log(jobduration),
+#          lnestateinc                     = normalize.log(estate_income_value))
+
+
 mydata <- mydata %>% 
   mutate(owner                           = factor(owner),
          other_estate                    = factor(other_estate),
@@ -32,6 +77,7 @@ mydata <- mydata %>%
          inherit_filter                  = factor(inherit_filter),
          selfempl                        = factor(selfempl),
          kidsu16                         = factor(kidsu16),
+         nkids                           = factor(nkids, ordered = T),
          livingcond                      = factor(livingcond, ordered = T),
          education                       = factor(education, ordered = T),
          job_training                    = factor(job_training),
@@ -47,116 +93,105 @@ mydata <- mydata %>%
          hhtyp                           = factor(hhtyp),
          livingcond                      = factor(livingcond, ordered = T),
          housecond                       = factor(housecond, ordered = T),
-         lnsqrmtrs                       = normalize.log(sqmtrs),
-         lnsaving                        = normalize.log(saving_value),
-         lnhhnetto                       = normalize.log(hhnetto),
-         lninheritance                   = normalize.log(total_inheritance),
-         lnorbis                         = normalize.log(orbis_wealth),
-         lnwage_g                        = normalize.log(wage_gross_m),
-         lnwage_n                        = normalize.log(wage_net_m),
-         lnjobduration                   = normalize.log(jobduration),
-         lnestateinc                     = normalize.log(estate_income_value))
+         saving                          = factor(saving),
+         partner                         = factor(partner),
+         gborn                           = factor(gborn),
+         educationjob                    = factor(educationjob, ordered = T),
+         bula                            = factor(bula_sta),
+         bik                             = factor(bik, ordered = T),
+         ggk                             = factor(ggk, ordered = T),
+         wuma2                           = factor(wuma2, ordered = T),
+         wuma3                           = factor(wuma3, ordered = T),
+         wuma5                           = factor(wuma5, ordered = T),
+         ost                             = factor(ost),
+         hhgr                            = factor(hhgr, ordered = T))
+
+
 ###### Preparing Monte Carlo Study #####
 
-filterimp <- c("pid","owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
-               "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
-               "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", "lmstatus",
-               "sex", "famstd", "inherit_filter", "selfempl","kidsu16", "employed",
-               "livingcond", "educationjob", "housedebt", "lnsqrmtrs", "lnsaving", "lnhhnetto", "lninheritance",
-               "lnorbis", "lnwage_g", "lnjobduration")    
-filterimp2 <- c("owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
-               "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
-               "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", "lmstatus",
-               "sex", "famstd", "inherit_filter", "selfempl","kidsu16", "employed",
-               "livingcond", "educationjob", "housedebt", "lnsqrmtrs", "lnsaving", "lnhhnetto", "lninheritance",
-               "lnorbis", "lnwage_g", "lnjobduration")   
+### subsetting useful variables:
+
+targetvars <- c("pid", "age", "sex", "ost", "bula", "bik", "ggk", "wuma2", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
+                "selfempl", "compsize", "superior", "workinghours", "overtime", "wage_gross_m", "wage_net_m",
+                "second_empl", "inherit_filter", "total_inheritance", "citizen", "famstd",
+                "owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
+                "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
+                "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", 
+                "residence_value", "other_estate_value", "assets", "building_contract",
+                "life_insure", "business_holdings", "vehicles", "tangibles",
+                "residence_debt", "other_estate_debt", "consumer_debt", "education_debt",
+                "gborn", "education", "schoolingF", "schoolingM", "trainingF", "trainingM", 
+                "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
+                "saving", "saving_value", "kidsu16")
+
+data <- select(mydata, one_of(targetvars))
+gg_miss_var(data, show_pct = TRUE)
+
+#all except 12 wealth components plus inheritance and saving which will also be imputed when filter is imputed 
+
+filterimp <-  c("pid", "age", "sex",  "ost", "bula", "bik", "ggk", "wuma2", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
+                "selfempl", "compsize", "superior", "workinghours", "overtime", "wage_gross_m", "wage_net_m",
+                "second_empl", "inherit_filter", "citizen", "famstd",
+                "owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
+                "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
+                "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", 
+                "gborn", "education", "schoolingF", "schoolingM", "trainingF", "trainingM", 
+                "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
+                "saving", "kidsu16")
+ 
+filterimp2 <- c("age", "sex", "ost", "bula", "bik", "ggk", "wuma2", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
+                "selfempl", "compsize", "superior", "workinghours", "overtime", "wage_gross_m", "wage_net_m",
+                "second_empl", "inherit_filter", "citizen", "famstd",
+                "owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
+                "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
+                "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", 
+                "gborn", "education", "schoolingF", "schoolingM", "trainingF", "trainingM", 
+                "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
+                "saving", "kidsu16") 
   
-filter <- select(mydata, one_of(filterimp))
+filter <- select(data, one_of(filterimp))
 gg_miss_var(filter, show_pct = TRUE)
 
 # first impute filter variables 
-filter.imp <- VIM::kNN(filter, variable = filterimp2, imp_var =F)
-
-gg_miss_var(filter.imp, show_pct = TRUE)
-
-filters <- c("pid","owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
-             "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
-             "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter")
-filters2 <- c("owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
-             "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
-             "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter")
-filter.post <- select(filter.imp,one_of(filters))
-
-#### parse filters back to a subset of mydata with all of the wealth components:
+filter.imp <- VIM::kNN(filter, variable = filterimp2, dist_var = colnames(filter[, -which(names(filter) == "pid")]),
+                       donorcond =  as.list(rep("!= -2",length(filterimp2))), imp_var =F)
 
 wealth.vars <- c("residence_value", "other_estate_value", "assets", "building_contract",
                  "life_insure", "business_holdings", "vehicles", "tangibles",
                  "residence_debt", "other_estate_debt", "consumer_debt", "education_debt")
-other.vars <- c("pid","lmstatus","sex", "famstd", "inherit_filter", "selfempl","kidsu16", "employed",
-                "livingcond", "educationjob", "housedebt", "lnsqrmtrs", "lnsaving", "lnhhnetto", "lninheritance",
-                "lnorbis", "lnwage_g", "lnjobduration")   
 
-wealth.comp <- select(mydata, one_of(wealth.vars,other.vars))
-wealth.comp <- full_join(filter.post,wealth.comp, by=names(intersect(wealth.comp,filter.post)))
-gg_miss_var(wealth.comp, show_pct = TRUE)
+filters <- c("owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
+             "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
+             "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter")
 
-### all 12 wealth components each filled up sequentially if filter is true
-### put here all target variables and the remaining wealth components and then call from this list!
-filter.imp <- setNames(lapply(seq_along(wealth.vars), function(i) 
-  VIM::kNN(select(filter(wealth.comp, .data[[filters2[[i]]]] == 1), one_of(wealth.vars[i], other.vars)), imp_var =F)), names(wealth.vars))
+wealth.comp <- full_join(filter.imp,select(data, one_of(c("pid", wealth.vars, "saving_value", "total_inheritance"))), by="pid")
 
-gg_miss_var(filter.imp[[1]], show_pct = TRUE)
+wealth.vars2 <- c("residence_value", "other_estate_value", "assets", "building_contract",
+                 "life_insure", "business_holdings", "vehicles", "tangibles",
+                 "residence_debt", "other_estate_debt", "consumer_debt", "education_debt", "saving_value", "total_inheritance")
 
-pid <- as.data.frame(mydata$pid)
-names(pid) <- "pid"
+filters2 <- c("owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
+              "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
+              "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", "saving", "inherit_filter")
 
-wealth.final <- left_join(pid, select(filter.imp[[1]], one_of(c("pid", wealth.vars[1]))), by = "pid")
-for(i in 2:12){
-  wealth.final <- left_join(wealth.final, select(filter.imp[[i]], one_of(c("pid", wealth.vars[i]))), by = "pid")
+for (i in 1:length(filters2)){
+  wealth.comp[,wealth.vars2[i]] <- ifelse(wealth.comp[,filters2[i]] == 0, -2, wealth.comp[,wealth.vars2[i]])
 }
-gg_miss_var(wealth.final, show_pct = TRUE)
 
-asset.vars <- c("residence_value", "other_estate_value", "assets", "building_contract",
-                 "life_insure", "business_holdings", "vehicles", "tangibles")
-liabilities.vars <- c("residence_debt", "other_estate_debt", "consumer_debt", "education_debt")
+wealth.imp <- VIM::kNN(wealth.comp, variable = wealth.vars2, dist_var = colnames(wealth.comp[, -which(names(wealth.comp) == "pid")]),
+                       donorcond =  as.list(rep("!= -2",length(wealth.vars2))), imp_var =F)
+gg_miss_var(wealth.imp, show_pct = TRUE)
+
+#### recode all -2 to missings for transformation and then recode them to a new logical missing code
+exceptions <- c("pid", "age", "hhgr", "orbis_wealth", "sqmtrs", "hhnetto")
+
+recode.vars <- setdiff(names(select_if(wealth.imp, is.numeric)), exceptions)
+
+for (i in 1:length(recode.vars)){
+  wealth.imp[,recode.vars[i]] <- ifelse(wealth.imp[,recode.vars[i]] == -2, NA, wealth.imp[,recode.vars[i]])
+}
                  
-wealth.final <- wealth.final %>% 
-  mutate(asset = rowSums(select(wealth.final, one_of(asset.vars)), na.rm = T),
-         liabilities = rowSums(select(wealth.final, one_of(liabilities.vars)), na.rm = T),
-         netwealth = asset -liabilities)
-
-gg_miss_var(wealth.final, show_pct = TRUE)
-hist(wealth.final$netwealth)
-summary(wealth.final$netwealth)
-
-targetvars <- c("pid","sex", "lnhhnetto", "lnwage_g", "educationjob", "lninheritance",
-                "housedebt", "selfempl", "employed", "famstd", "age",
-                "lnorbis", "lmstatus", "hours_actual", "inherit_filter", "kidsu16",
-                "lnestateinc", "lnsaving", "superior", "stillfirstemp",
-                "lnsqrmtrs", "lnjobduration")
-
-final <- select(mydata, one_of(targetvars)) 
-final <- left_join(final, select(wealth.final, one_of(c("pid", "netwealth"))), by = "pid") %>% 
-  select(-pid)
-gg_miss_var(final, show_pct = TRUE)
-final.imp <- VIM::kNN(final, imp_var = F)
-gg_miss_var(final.imp, show_pct = TRUE)
-
-#write.dta(final.imp, "wealth_knn.dta")
-
-multiple.imp <- left_join(full_join(wealth.final,filter.post, by="pid"), select(mydata, one_of(targetvars)), by="pid") 
-gg_miss_var(multiple.imp, show_pct = TRUE)
-multiple.imp<- VIM::kNN(multiple.imp, variable = targetvars, imp_var = F)
-gg_miss_var(multiple.imp, show_pct = TRUE)
-
-multiple.imp <- multiple.imp %>% 
-  select(-asset, -netwealth, -liabilities) 
-for (i in 1:ncol(multiple.imp)){
-  if (sum(is.na(multiple.imp[,i]) > 0)){
-    multiple.imp[,i] <- ifelse(is.na(multiple.imp[,i]), 0, multiple.imp[,i])
-  }
-}
-multiple.imp <- multiple.imp %>% 
+multiple.imp <- wealth.imp %>% 
   mutate(lnresidence       = normalize.log(residence_value),
          lnestate          = normalize.log(other_estate_value),
          lnassets          = normalize.log(assets),
@@ -169,25 +204,37 @@ multiple.imp <- multiple.imp %>%
          lnestate_debt     = normalize.log(other_estate_debt),
          lnconsumer_debt   = normalize.log(consumer_debt),
          lnstudent_debt    = normalize.log(education_debt),
-         superior          = factor(superior, ordered = F),
-         stillfirstemp     = factor(stillfirstemp, ordered = F),
-         educ_high_job     = factor(ifelse(educationjob==4 | educationjob==3,1,0), ordered =F),
-         educ_voc_job      = factor(ifelse(educationjob==2,1,0), ordered =F))
-
-multiple.imp <- select(multiple.imp, -asset.vars, -liabilities.vars, -educationjob)
+         lnjobduration     = normalize.log(jobduration),
+         lnworkinghours    = normalize.log(workinghours),
+         lnwage_gross      = normalize.log(wage_gross_m),
+         lnwage_net        = normalize.log(wage_net_m),
+         lnsaving          = normalize.log(saving_value),
+         lninheritance     = normalize.log(total_inheritance),
+         lnorbis           = normalize.log(orbis_wealth),
+         lnsqmtrs          = normalize.log(sqmtrs),
+         lnhhnetto         = normalize.log(hhnetto)) %>% 
+  select(-c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
 
 lnwealthvars <- c("lnresidence", "lnestate", "lnassets", "lnbuilding", "lnlife", "lnbusiness", "lnvehicles", "lntangibles",
                   "lnresidence_debt", "lnestate_debt", "lnconsumer_debt", "lnstudent_debt")
+lnrecode.vars <- c("lnresidence", "lnestate", "lnassets", "lnbuilding", "lnlife", "lnbusiness", "lnvehicles", "lntangibles",
+                  "lnresidence_debt", "lnestate_debt", "lnconsumer_debt", "lnstudent_debt", "lnjobduration",
+                  "lnworkinghours", "lnwage_gross", "lnwage_net", "lnsaving", "lninheritance")
+for (i in 1:length(lnrecode.vars)){
+  multiple.imp[,lnrecode.vars[i]] <- ifelse(is.na(multiple.imp[,lnrecode.vars[i]]), -99, multiple.imp[,lnrecode.vars[i]])
+}
+gg_miss_var(multiple.imp, show_pct = TRUE)
 
-from <- filters2
+from <- filters
 to <- lnwealthvars
 whitelist <- as.data.frame(cbind(from,to)) 
 
-cond.vector <- c(filters, "sex", "age", "kidsu16", "inherit_filter", "lnorbis")
+#cond.vector <- c(filters, "sex", "age", "kidsu16", "inherit_filter", "lnorbis")
 
 tryfull <- hc(multiple.imp[, -which(names(multiple.imp) == "pid")], whitelist = whitelist, score = "bic-cg")
 ggnet2(tryfull$arcs, directed = TRUE,
        arrow.size = 9, arrow.gap = 0.025, label = T)
+bnlearn::graphviz.plot(tryfull)
 
 set.seed(1234)
 trymiss <- make.mcar(multiple.imp, p=.1, cond = cond.vector)
