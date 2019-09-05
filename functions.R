@@ -10,14 +10,18 @@ normalize.log <- function(x){
 }
 
 #generate MCAR data from full dataset
-make.mcar <- function(data, p=0.5, cond = NULL){
-  rx <- rbinom(nrow(data), 1, 1-p)
-  data1 <- select(data, -cond)  
+make.mcar <- function(data, prob=prob, cond = NULL){
+  data1 <- select(data, one_of(cond))  
   for (i in 1: ncol(data1)){
-    rx <- rbinom(nrow(data1), 1, 1-p)
-    data1[rx==0,i] <- NA
+    n1 <- nrow(data1) - nrow(data1[data1[,i] != -99,])
+    n2 <- nrow(data1[data1[,i] != -99,])
+    p1 <- 0
+    p2 <- prob
+    n <- ifelse(data1[,i] == -99, n1, n2)
+    p <- ifelse(data1[,i] == -99, p1, p2)
+    data1[rbinom(n, 1, 1-p) == 0,i] <- NA
   }
-  data <- cbind(select(data, one_of(cond)),data1)
+  data <- cbind(select(data, -cond),data1)
   return(data)
 }
 
@@ -114,8 +118,12 @@ bn.parents.imp <- function(bn=bn, dat=dat, seed = seed){
           }
         } else {
           names(data) <- parents[1]
-          listtest <- setNames(list(parents = as.character(data[1,])), nm = names(data))
-          test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+          if (is.na(data[j,])){
+            test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
+          } else {
+            listtest <- setNames(list(parents = as.character(data[j,])), nm = names(data))
+            test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
+          }
         }
       }
       testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))

@@ -83,6 +83,7 @@ pacman::p_load(
   network,
   GGally,
   VIM,
+  Ball,
   mice,
   splines2,
   reshape2,

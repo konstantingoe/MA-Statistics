@@ -98,9 +98,9 @@ mydata <- mydata %>%
          gborn                           = factor(gborn),
          educationjob                    = factor(educationjob, ordered = T),
          bula                            = factor(bula_sta),
-         bik                             = factor(bik, ordered = T),
+         bik                             = fct_rev(factor(bik, ordered = T)),
          ggk                             = factor(ggk, ordered = T),
-         wuma2                           = factor(wuma2, ordered = T),
+         wuma7                           = factor(wuma7, ordered = F),
          wuma3                           = factor(wuma3, ordered = T),
          wuma5                           = factor(wuma5, ordered = T),
          ost                             = factor(ost),
@@ -111,7 +111,7 @@ mydata <- mydata %>%
 
 ### subsetting useful variables:
 
-targetvars <- c("pid", "age", "sex", "ost", "bula", "bik", "ggk", "wuma2", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
+targetvars <- c("pid", "age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
                 "selfempl", "compsize", "superior", "workinghours", "overtime", "wage_gross_m", "wage_net_m",
                 "second_empl", "inherit_filter", "total_inheritance", "citizen", "famstd",
                 "owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
@@ -129,7 +129,7 @@ gg_miss_var(data, show_pct = TRUE)
 
 #all except 12 wealth components plus inheritance and saving which will also be imputed when filter is imputed 
 
-filterimp <-  c("pid", "age", "sex",  "ost", "bula", "bik", "ggk", "wuma2", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
+filterimp <-  c("pid", "age", "sex",  "ost", "bula", "bik", "ggk", "wuma7", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
                 "selfempl", "compsize", "superior", "workinghours", "overtime", "wage_gross_m", "wage_net_m",
                 "second_empl", "inherit_filter", "citizen", "famstd",
                 "owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
@@ -139,7 +139,7 @@ filterimp <-  c("pid", "age", "sex",  "ost", "bula", "bik", "ggk", "wuma2", "wum
                 "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
                 "saving", "kidsu16")
  
-filterimp2 <- c("age", "sex", "ost", "bula", "bik", "ggk", "wuma2", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
+filterimp2 <- c("age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
                 "selfempl", "compsize", "superior", "workinghours", "overtime", "wage_gross_m", "wage_net_m",
                 "second_empl", "inherit_filter", "citizen", "famstd",
                 "owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
@@ -212,131 +212,113 @@ multiple.imp <- wealth.imp %>%
          lninheritance     = normalize.log(total_inheritance),
          lnorbis           = normalize.log(orbis_wealth),
          lnsqmtrs          = normalize.log(sqmtrs),
-         lnhhnetto         = normalize.log(hhnetto)) %>% 
-  select(-c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+         lnhhnetto         = normalize.log(hhnetto)) 
 
 lnwealthvars <- c("lnresidence", "lnestate", "lnassets", "lnbuilding", "lnlife", "lnbusiness", "lnvehicles", "lntangibles",
                   "lnresidence_debt", "lnestate_debt", "lnconsumer_debt", "lnstudent_debt")
 lnrecode.vars <- c("lnresidence", "lnestate", "lnassets", "lnbuilding", "lnlife", "lnbusiness", "lnvehicles", "lntangibles",
-                  "lnresidence_debt", "lnestate_debt", "lnconsumer_debt", "lnstudent_debt", "lnjobduration",
-                  "lnworkinghours", "lnwage_gross", "lnwage_net", "lnsaving", "lninheritance")
+                   "lnresidence_debt", "lnestate_debt", "lnconsumer_debt", "lnstudent_debt", "lnjobduration",
+                   "lnworkinghours", "lnwage_gross", "lnwage_net", "lnsaving", "lninheritance")
+
+rerecode.vars <- c(wealth.vars, "jobduration", "workinghours", "wage_gross_m", "wage_net_m", "saving_value", "total_inheritance")
+
+###### Truth comes here ########
+truth <- multiple.imp
 for (i in 1:length(lnrecode.vars)){
-  multiple.imp[,lnrecode.vars[i]] <- ifelse(is.na(multiple.imp[,lnrecode.vars[i]]), -99, multiple.imp[,lnrecode.vars[i]])
+  truth[,lnrecode.vars[i]] <- ifelse(is.na(truth[,lnrecode.vars[i]]), 
+                                            -log(mean(1+truth[,rerecode.vars[i]], na.rm = T))/log(sd(1+truth[,rerecode.vars[i]], na.rm =T)),
+                                     truth[,lnrecode.vars[i]])
 }
-gg_miss_var(multiple.imp, show_pct = TRUE)
+
+truth <- select(truth, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+gg_miss_var(truth, show_pct = TRUE)
 
 from <- filters
 to <- lnwealthvars
 whitelist <- as.data.frame(cbind(from,to)) 
 
-#cond.vector <- c(filters, "sex", "age", "kidsu16", "inherit_filter", "lnorbis")
-
-tryfull <- hc(multiple.imp[, -which(names(multiple.imp) == "pid")], whitelist = whitelist, score = "bic-cg")
-ggnet2(tryfull$arcs, directed = TRUE,
+truth.structure <- hc(truth[, -which(names(truth) == "pid")], whitelist = whitelist, score = "bic-cg")
+ggnet2(truth.structure$arcs, 
        arrow.size = 9, arrow.gap = 0.025, label = T)
-bnlearn::graphviz.plot(tryfull)
+#bnlearn::graphviz.plot(truth.structure)
+
+###### truth done ######
+
+#### prepare simulation #####
+
+for (i in 1:length(lnrecode.vars)){
+  multiple.imp[,lnrecode.vars[i]] <- ifelse(is.na(multiple.imp[,lnrecode.vars[i]]), 
+                                            -99,
+                                            multiple.imp[,lnrecode.vars[i]])
+}
 
 set.seed(1234)
-trymiss <- make.mcar(multiple.imp, p=.1, cond = cond.vector)
-
-gg_miss_var(trymiss, show_pct = TRUE)
-for (i in 1:length(lnwealthvars)){
-  trymiss[,lnwealthvars[i]] <- ifelse(is.na(trymiss[,lnwealthvars[i]]) & multiple.imp[,lnwealthvars[i]] == min(multiple.imp[,lnwealthvars[i]]), min(multiple.imp[,lnwealthvars[i]]), trymiss[,lnwealthvars[i]])
+cond.vector <- c(lnrecode.vars, "lnhhnetto", "schoolingF", "schoolingM", "trainingF", "trainingM", "compsize", "superior", "education")
+mi.multiple.imp <- make.mcar(multiple.imp, prob=.1, cond = cond.vector)
+for (i in 1:length(lnrecode.vars)){
+  mi.multiple.imp[,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[,lnrecode.vars[i]] == -99, 
+                                            -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
+                                            mi.multiple.imp[,lnrecode.vars[i]])
 }
-gg_miss_var(trymiss, show_pct = TRUE)
+mi.multiple.imp <- select(mi.multiple.imp, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
 
-rel_label <- miss_var_summary(trymiss[,names(trymiss) != "pid"], order = T)
+gg_miss_var(mi.multiple.imp, show_pct = TRUE)
+
+###### +++++++++++++++++++++++++++   Beginning Simulation +++++++++++++++++++++++++++ ######
+
+rel_label <- miss_var_summary(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], order = T)
 reliability <- rel_label$pct_miss
 names(reliability) <- rel_label$variable
 
-# initialise an empty BN 
-bn = bn.fit(empty.graph(names(trymiss[,names(trymiss) != "pid"])), trymiss[,names(trymiss) != "pid"])
-# three iterations of structural EM.
-for (i in 1:5) {
-  # expectation step.
-  imputed = bnlearn::impute(bn, trymiss[,names(trymiss) != "pid"], method = "bayes-lw")
-  # maximisation step (forcing LAT to be connected to the other nodes).
-  dag = hc(imputed, whitelist = whitelist,score = "bic-cg")
-  bn  = bn.fit(dag, imputed, method = "mle")
-}
+# # initialise an empty BN 
+# bn = bn.fit(empty.graph(names(mi.multiple.imp[,names(mi.multiple.imp) != "pid"])), mi.multiple.imp[,names(mi.multiple.imp) != "pid"])
+# # three iterations of structural EM.
+# for (i in 1:5) {
+#   # expectation step.
+#   imputed = bnlearn::impute(bn, mi.multiple.imp[,names(mi.multiple.imp) != "pid"], method = "bayes-lw")
+#   # maximisation step (forcing LAT to be connected to the other nodes).
+#   dag = hc(imputed, whitelist = whitelist,score = "bic-cg")
+#   bn  = bn.fit(dag, imputed, method = "mle")
+# }
 
-unlist(bnlearn::compare(cpdag(dag), cpdag(tryfull)))
+mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
+                              fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
 
-try <- dag
+
+unlist(bnlearn::compare(truth.structure, mi.structure$dag))
+
+try <- mi.structure$dag
 arc.reversal(object = try)
 
-ggnet2(try$arcs, directed = TRUE,
+ggnet2(try$arcs, 
        arrow.size = 9, arrow.gap = 0.025, label = T)
-graphviz.plot(try)
+graphviz.plot(try, groups = lnwealthvars)
 
-bn  = bn.fit(try, imputed, method = "mle")
+bn  = bn.fit(try, mi.structure$imputed, method = "mle")
 
+try2 <- bn.parents.imp(bn=bn, dat=mi.multiple.imp, seed = 1234)
 
-#write loop for first imputation by parents:
-imp.reliability <- sort(reliability[reliability>0], decreasing = F)
-gg_miss_var(trymiss, show_pct = TRUE)
+gg_miss_var(try2, show_pct = TRUE)
 
-dat <- trymiss
+#### level 1 recovery of marginal distributions and misclassification error 
 
-set.seed(1234)
-for (k in 1:length(imp.reliability)){
-  parents <- bnlearn::parents(bn, names(imp.reliability)[k])
-  if (length(parents) == 0){
-  data <- trymiss[is.na(trymiss[,names(imp.reliability[k])]),]
-  test <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
-  testsample <- dplyr::sample_n(na.omit(test), nrow(data), replace = T)
-  } else {
-  data <- trymiss[is.na(trymiss[,names(imp.reliability[k])]),parents]
-  data <- as.data.frame(data) 
-  test <- NULL
-  for (j in 1:nrow(data)){
-    if (ncol(data)>1){
-    data1 <- data[j,]
-    data2 <- as.data.frame(data1[,!apply(data1,2,function(x) any(is.na(x)))])
-    names(data2) <- colnames(data1)[apply(!is.na(data1), 2, any)]
-    if (ncol(data2)==0){
-      test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
-    } else if (ncol(data2)>1){
-      listtest <- setNames(lapply(1:ncol(data2), function(i) data2[,i]), nm=names(data2))
-      test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
-    } else {
-      listtest <- setNames(list(parents = as.character(data2[1,])), nm = names(data2))
-      test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
-    }
-    #test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
-    } else {
-    names(data) <- parents[1]
-    listtest <- setNames(list(parents = as.character(data[1,])), nm = names(data))
-    test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
-    }
-   }
-  testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))
-  }
-  data[names(imp.reliability)[k]] <- testsample
-  trymiss[,names(imp.reliability[k])][is.na(trymiss[,names(imp.reliability[k])])] <- data[,names(imp.reliability)[k]]
-}
+# continuous vars
+continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
+lvl1 <- sapply(1:length(continuous.imp.vars), function(i) 
+  hellinger(try2[,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]]))
 
-gg_miss_var(testing, show_pct = TRUE)
+lvl2 <- sapply(1:length(continuous.imp.vars), function(i) 
+  bd.test(try2[,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]]))$bd
 
-try2 <- bn.parents.imp(bn=bn, dat=dat, seed = 1234)
+# discrete vars: 
+discrete.imp.vars <- c("trainingF", "trainingM", "schoolingF", "schoolingM", "education", "superior", "compsize")
+sapply(1:length(discrete.imp.vars), function(i) 1-sum(diag(table(try2[,discrete.imp.vars[i]]  ,truth[,discrete.imp.vars[i]])))/sum(table(try2[,discrete.imp.vars[i]]  ,truth[,discrete.imp.vars[i]])))
 
+##### level 2 multivariate distribution recovery #####
+bd.test(x = select(try2, one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, one_of(continuous.imp.vars, discrete.imp.vars)))
 
+#### to do's: include coundaries for wealth values
 
-
-sapply(1:length(lnwealthvars), function(i) 
-  hellinger(testing[,lnwealthvars[i]],multiple.imp[,lnwealthvars[i]]) <= hellinger(imputed[,lnwealthvars[i]],multiple.imp[,lnwealthvars[i]]))
-
-hellinger(testing[,lnwealthvars[i]],multiple.imp[,lnwealthvars[i]])
-
-tab <- table(testing$employed,multiple.imp$employed)
-1-sum(diag(tab))/sum(tab)
-
-###compare truth and imputed:
-distcomp.vars <- names(imp.reliability)
-
-emd <- emd(as.matrix(select(testing, one_of(distcomp.vars))), as.matrix(select(multiple.imp, one_of(distcomp.vars))))
-
-### ask Markus for regional indicators!  
 #estate.clean <- estate.clean %>% 
 #  mutate(estate = exp(lnestate)* mean(estate$other_estate_value, na.rm = T)) %>% 
 #  mutate(estate_limits = ifelse(is.na(estate_limits) & estate < 20000,1,
@@ -347,10 +329,6 @@ emd <- emd(as.matrix(select(testing, one_of(distcomp.vars))), as.matrix(select(m
 
 # MICE imputation covariates from SOEP:
 
-#sex, west, lnwage, years of education, debt indicator, income from rent, selfemployment dummy, car dummy, 
-#public sector, sparbuch1, nopartner dummy, age, age2, private insurance, inheritance, rural area (BIK), other regional stuff (Raumordnungsregion)
-
-
 #------------------------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------------------------#
@@ -358,55 +336,49 @@ emd <- emd(as.matrix(select(testing, one_of(distcomp.vars))), as.matrix(select(m
 #------------------------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------------------------#
+dat <- mi.multiple.imp %>%  
+  mutate(employed = ifelse(lmstatus %in% c(1,2,4), 1,0)) %>% 
+  select(-lmstatus)
 
 imp <- mice(dat, maxit = 0, print=F)
 meth <- imp$method
 pred <- imp$predictorMatrix
 
-indepvars.all <- c("kidsu16", "sex", "educ_high_job", "educ_voc_job", "lnwage_g",
-                   "lnhhnetto", "lninheritance", "inherit_filter", "lnsaving", "superior",
-                   "selfempl", "employed", "famstd", "age", "hours_actual", "lnjobduration",
-                   "lnestateinc", "stillfirstemp")
+#pred[,"pid"] <- 0
+
+indepvars.all <- c("age", "sex", "ost", "bik", "wuma7", "employed", "inherit_filter",
+                   "citizen", "famstd", "gborn", "kidsu16", "partner", "saving", "lnsaving", 
+                   "lninheritance", "lnhhnetto", "schoolingF", "schoolingM", "compsize",
+                   "education")
+
+miss <- names(reliability[reliability>0])
 pred[,] <- 0
-miss <- NULL
-for (i in 1:length(a)){
-  if (a[i]>0){
-    miss[i] <- names(a[i])
-  }
-}  
 
-miss <- names(imp.reliability)
-
-miss <- na.omit(miss)
 for (i in 1:length(miss)){
   pred[miss[i], indepvars.all[indepvars.all != miss[i]]] <- 1
 }
+ 
+#pred[lnwealthvars, c("lnorbis",filters)] <- 1
+pred[lnwealthvars, c("lnorbis")] <- 1
 
-for (i in 1:length(lnwealthvars)){
-  pred[lnwealthvars[i], indepvars.all[indepvars.all != lnwealthvars[i]]] <- 1
-  pred[lnwealthvars[i], "lnorbis"] <- 1
-  
-}
 
-pred["lninheritance", c("lntangibles", "housedebt", "lnresidence", "lnestate", "lnestateinc")] <- 1
-pred["housedebt", c("lnresidence", "lnestate", "lnsqrmtrs", "lnbuilding", "lnestateinc")] <- 1
-pred["lnresidence", c("lnsqrmtrs", "housedebt", "lnestateinc")] <- 1
-pred["lnestate", c("lnsqrmtrs", "housedebt", "lnestateinc")] <- 1
-pred["lnestateinc", c("lnresidence", "lnestate", "lnsqrmtrs", "lnbuilding")] <- 1
-pred["lnresidence_debt", c("lnsqrmtrs", "housedebt", "lnestateinc")] <- 1
-pred["lnestate_debt", c("lnsqrmtrs", "housedebt", "lnestateinc")] <- 1
+pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
+pred["lnresidence", c("lnsqmtrs", "lnestate", "lnbuilding")] <- 1
+pred["lnestate", c("lnsqmtrs","lnbuilding","lnresidence")] <- 1
+pred["lnresidence_debt", c("lnsqmtrs","lnbuilding","lnresidence","lnestate_debt")] <- 1
+pred["lnestate_debt", c("lnsqmtrs","lnbuilding","lnresidence","lnresidence_debt")] <- 1
+pred["lnbuilding", c("lnsqmtrs","lnestate","lnresidence","lnresidence_debt")] <- 1
 
-mice.imp <- mice(dat, maxit = 15, predictorMatrix = pred ,print=F, seed=123)
+
+mice.imp <- mice(dat, maxit = 15, predictorMatrix = pred ,print=F, seed=123, m=3)
 plot(mice.imp)
 
 stripplot(mice.imp)
-hell <- sapply(1:mice.imp$m, function(i) hellinger(mice.imp$imp$lnhhnetto[[i]], multiple.imp$lnhhnetto))
+hell <- sapply(1:mice.imp$m, function(i) hellinger(mice.imp$imp$lnhhnetto[[i]], truth$lnhhnetto))
 hell1 <- hellinger(try2$lnhhnetto, multiple.imp$lnhhnetto)
 
-#multiple.imp2 <- as.data.frame(multiple.imp2)
-for (i in 1:ncol(multiple.imp2)){
-    if (sum(is.na(multiple.imp2[,i]) > 0)){
-  multiple.imp2[,i] <- ifelse(is.na(multiple.imp2[,i]), 0, multiple.imp2[,i])
-  }
-}
-gg_miss_var(multiple.imp2, show_pct = TRUE)
+
+
+
+
+
