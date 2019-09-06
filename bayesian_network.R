@@ -294,8 +294,6 @@ ggnet2(try$arcs,
        arrow.size = 9, arrow.gap = 0.025, label = T)
 graphviz.plot(try, groups = lnwealthvars)
 
-bn  = bn.fit(try, mi.structure$imputed, method = "mle")
-
 try2 <- bn.parents.imp(bn=bn, dat=mi.multiple.imp, seed = 1234)
 
 gg_miss_var(try2, show_pct = TRUE)
@@ -361,16 +359,21 @@ for (i in 1:length(miss)){
 #pred[lnwealthvars, c("lnorbis",filters)] <- 1
 pred[lnwealthvars, c("lnorbis")] <- 1
 
-
+# more variables for residence variables:
+indepvars.residence <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence_debt", "lnestate_debt", "selfempl",
+                         "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
+indepvars.residence.debt <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence", "lnestate", "selfempl",
+                        "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
+pred["lnresidence_debt", c(indepvars.residence.debt, "lnestate_debt")] <- 1
+pred["lnestate_debt", c(indepvars.residence.debt, "lnresidence_debt")] <- 1
+pred["lnresidence", c(indepvars.residence, "lnestate")] <- 1
+pred["lnestate", c(indepvars.residence, "lnresidence")] <- 1
+pred["consumer_debt_filter", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
 pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
-pred["lnresidence", c("lnsqmtrs", "lnestate", "lnbuilding")] <- 1
-pred["lnestate", c("lnsqmtrs","lnbuilding","lnresidence")] <- 1
-pred["lnresidence_debt", c("lnsqmtrs","lnbuilding","lnresidence","lnestate_debt")] <- 1
-pred["lnestate_debt", c("lnsqmtrs","lnbuilding","lnresidence","lnresidence_debt")] <- 1
-pred["lnbuilding", c("lnsqmtrs","lnestate","lnresidence","lnresidence_debt")] <- 1
+pred["lnbuilding", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
 
 
-mice.imp <- mice(dat, maxit = 15, predictorMatrix = pred ,print=F, seed=123, m=3)
+mice.imp <- mice(dat, maxit = 15, predictorMatrix = pred ,print=F, seed=123, m=1)
 plot(mice.imp)
 
 stripplot(mice.imp)
@@ -379,6 +382,45 @@ hell1 <- hellinger(try2$lnhhnetto, multiple.imp$lnhhnetto)
 
 
 
+##### Simulation ####
+
+k <- 5
+set.seed(1234)
+mi.multiple.imp <- NULL
+bn.imp <- NULL
+mice.imp <- NULL
+
+mi.multiple.imp <-  lapply(1:k, function(l) make.mcar(multiple.imp, prob=.1, cond = cond.vector))
+for (l in 1:k) { 
+  for (i in 1:length(lnrecode.vars)){
+    mi.multiple.imp[[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[l]][,lnrecode.vars[i]] == -99, 
+                                                 -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
+                                                 mi.multiple.imp[[l]][,lnrecode.vars[i]])
+  }
+  mi.multiple.imp[[l]] <- select(mi.multiple.imp[[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+} 
+
+  
+#mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
+#                                fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
+
+mi.structure <- lapply(1:k, function(l) structural.em(mi.multiple.imp[[l]][,names(mi.multiple.imp[[l]]) != "pid"], maximize = "hc",
+                              fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T))
+
+sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[l]]$dag)))
+
+for (l in 1:k){
+  rel_label <- miss_var_summary(mi.multiple.imp[[l]][,names(mi.multiple.imp[[l]]) != "pid"], order = T)
+  reliability <- rel_label$pct_miss
+  names(reliability) <- rel_label$variable
+  arc.reversal(object = mi.structure[[l]]$dag)
+}
+bn <-  lapply(1:k, function(l) bn.fit(mi.structure[[l]]$dag, mi.structure[[l]]$imputed, method = "mle"))
+
+bn.imp <- lapply(1:k, function(l) bn.parents.imp(bn=bn[[l]], 
+                         dat=mi.multiple.imp[[l]]))
+
+mice.imp <- lapply(1:k, function(l) mice(mi.multiple.imp[[l]], maxit = 15, predictorMatrix = pred ,print=F, m=1))
 
 
 

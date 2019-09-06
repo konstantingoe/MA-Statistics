@@ -86,12 +86,13 @@ arc.reversal2 <- function(object = object){
 
 #### BN-imputation by parents function ####
 
-bn.parents.imp <- function(bn=bn, dat=dat, seed = seed){
+bn.parents.imp <- function(bn=bn, dat=dat, seed = NULL){
   set.seed(seed)
   rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
   reliability <- rel_label$pct_miss
   names(reliability) <- rel_label$variable
   imp.reliability <- sort(reliability[reliability>0], decreasing = F)
+  
   for (k in 1:length(imp.reliability)){
     parents <- bnlearn::parents(bn, names(imp.reliability)[k])
     if (length(parents) == 0){
@@ -113,7 +114,7 @@ bn.parents.imp <- function(bn=bn, dat=dat, seed = seed){
             listtest <- setNames(lapply(1:ncol(data2), function(i) data2[,i]), nm=names(data2))
             test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
           } else {
-            listtest <- setNames(list(parents = as.character(data2[1,])), nm = names(data2))
+            listtest <- setNames(lapply(1:ncol(data2), function(i) data2[,i]), nm=names(data2))
             test[j] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = listtest, method = "lw"))
           }
         } else {
