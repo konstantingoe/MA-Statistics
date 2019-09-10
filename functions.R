@@ -13,13 +13,23 @@ normalize.log <- function(x){
 make.mcar <- function(data, prob=prob, cond = NULL){
   data1 <- select(data, one_of(cond))  
   for (i in 1: ncol(data1)){
-    n1 <- nrow(data1) - nrow(data1[data1[,i] != -99,])
-    n2 <- nrow(data1[data1[,i] != -99,])
-    p1 <- 0
-    p2 <- prob
-    n <- ifelse(data1[,i] == -99, n1, n2)
-    p <- ifelse(data1[,i] == -99, p1, p2)
-    data1[rbinom(n, 1, 1-p) == 0,i] <- NA
+    if (is.numeric(data1[,i])){ 
+      n1 <- nrow(data1) - nrow(data1[data1[,i] != -99,])
+      n2 <- nrow(data1[data1[,i] != -99,])
+      p1 <- 0
+      p2 <- prob
+      n <- ifelse(data1[,i] == -99, n1, n2)
+      p <- ifelse(data1[,i] == -99, p1, p2)
+      data1[rbinom(n, 1, 1-p) == 0,i] <- NA
+    } else {
+      n1 <- nrow(data1) - nrow(data1[data1[,i] != -2,])
+      n2 <- nrow(data1[data1[,i] != -2,])
+      p1 <- 0
+      p2 <- prob
+      n <- ifelse(data1[,i] == -2, n1, n2)
+      p <- ifelse(data1[,i] == -2, p1, p2)
+      data1[rbinom(n, 1, 1-p) == 0,i] <- NA
+    }  
   }
   data <- cbind(select(data, -cond),data1)
   return(data)

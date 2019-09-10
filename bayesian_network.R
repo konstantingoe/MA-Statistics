@@ -233,14 +233,15 @@ for (i in 1:length(lnrecode.vars)){
 truth <- select(truth, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
 gg_miss_var(truth, show_pct = TRUE)
 
-from <- filters
-to <- lnwealthvars
+from <- c(filters, rep("lmstatus", 6))
+to <- c(lnwealthvars, "lnjobduration", "lnworkinghours", "lnwage_gross", "lnwage_net", "compsize", "superior")
 whitelist <- as.data.frame(cbind(from,to)) 
+
 
 truth.structure <- hc(truth[, -which(names(truth) == "pid")], whitelist = whitelist, score = "bic-cg")
 ggnet2(truth.structure$arcs, 
        arrow.size = 9, arrow.gap = 0.025, label = T)
-#bnlearn::graphviz.plot(truth.structure)
+bnlearn::graphviz.plot(truth.structure)
 
 ###### truth done ######
 
@@ -252,143 +253,114 @@ for (i in 1:length(lnrecode.vars)){
                                             multiple.imp[,lnrecode.vars[i]])
 }
 
-set.seed(1234)
 cond.vector <- c(lnrecode.vars, "lnhhnetto", "schoolingF", "schoolingM", "trainingF", "trainingM", "compsize", "superior", "education")
-mi.multiple.imp <- make.mcar(multiple.imp, prob=.1, cond = cond.vector)
-for (i in 1:length(lnrecode.vars)){
-  mi.multiple.imp[,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[,lnrecode.vars[i]] == -99, 
-                                            -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
-                                            mi.multiple.imp[,lnrecode.vars[i]])
+
+#### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
+                          ##### Simulation ####
+#### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
+
+data <- multiple.imp
+test <- select(test, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+
+gg_miss_var(test, show_pct = T)
+patterns.vars <- c(rerecode.vars, "hhnetto", "schoolingF", "schoolingM", "trainingF", "trainingM", "compsize", "superior", "education")
+patterns <- md.pattern(select(data, one_of(patterns.vars)))
+patterns <- patterns[-nrow(patterns),]
+patterns <- patterns[,-ncol(patterns)]
+
+
+other.vars <- setdiff(names(test), cond.vector)
+colnames(patterns.others) <- other.vars
+patterns.others <- matrix(data = 1, nrow = nrow(patterns), ncol = length(other.vars))
+
+patterns.final <- as.data.frame(cbind(patterns.others, patterns)) 
+
+result <- ampute(test, prop = .1, bycases = T, patterns = patterns.final, mech = "MAR")
+gg_miss_var(result$amp, show_pct = TRUE)
+
+
+
+mar <- produce_NA(test[,cond.vector], mechanism="MAR", perc.missing = 0.1)
+
+
+
+# MNAR
+
+
+gg_miss_var(data1, show_pct = TRUE)
+data1 <- select(data, one_of(cond))  
+
+prop.m = .1  # 10% missingness
+sort.data <- NULL
+nmar <- NULL
+data.nmar <- NULL
+for (i in 1:ncol(data1)){
+  if (is.numeric(data1[,i])){ 
+    sort.data <-  sort(data1[data1[,i] != -99,i], decreasing=TRUE)
+    nmar   <-  sort.data[ceiling(prop.m*length(data1[,i]))]
+    data1[,i] <-  ifelse(data1[,i] > nmar, NA, data1[,i]) 
+  } else {
+    
+  }
 }
-mi.multiple.imp <- select(mi.multiple.imp, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
 
-gg_miss_var(mi.multiple.imp, show_pct = TRUE)
-
-###### +++++++++++++++++++++++++++   Beginning Simulation +++++++++++++++++++++++++++ ######
-
-rel_label <- miss_var_summary(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], order = T)
-reliability <- rel_label$pct_miss
-names(reliability) <- rel_label$variable
-
-# # initialise an empty BN 
-# bn = bn.fit(empty.graph(names(mi.multiple.imp[,names(mi.multiple.imp) != "pid"])), mi.multiple.imp[,names(mi.multiple.imp) != "pid"])
-# # three iterations of structural EM.
-# for (i in 1:5) {
-#   # expectation step.
-#   imputed = bnlearn::impute(bn, mi.multiple.imp[,names(mi.multiple.imp) != "pid"], method = "bayes-lw")
-#   # maximisation step (forcing LAT to be connected to the other nodes).
-#   dag = hc(imputed, whitelist = whitelist,score = "bic-cg")
-#   bn  = bn.fit(dag, imputed, method = "mle")
-# }
-
-mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
-                              fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
+sort.y = apply(data1, 2, sort, decreasing=TRUE)
+nmar   = sort.y[ceiling(prop.m*length(y))]
+y.nmar = ifelse(y>nmar, NA, y)  # doesn't show up when heavier
 
 
-unlist(bnlearn::compare(truth.structure, mi.structure$dag))
+# Generate the true data
+y1 <- rbinom(100, size=1, prob=0.1)
+# Generate the missing process. Depends on the "true" observed value
+r  <- rbinom(length(y1), size=1, prob=c(.1, .1)[y1+1])
+y  <- y1
+y[r==1] <- NA
 
-try <- mi.structure$dag
-arc.reversal(object = try)
 
-ggnet2(try$arcs, 
-       arrow.size = 9, arrow.gap = 0.025, label = T)
-graphviz.plot(try, groups = lnwealthvars)
+p <- .1 
 
-try2 <- bn.parents.imp(bn=bn, dat=mi.multiple.imp, seed = 1234)
-
-gg_miss_var(try2, show_pct = TRUE)
-
-#### level 1 recovery of marginal distributions and misclassification error 
-
-# continuous vars
-continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
-lvl1 <- sapply(1:length(continuous.imp.vars), function(i) 
-  hellinger(try2[,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]]))
-
-lvl2 <- sapply(1:length(continuous.imp.vars), function(i) 
-  bd.test(try2[,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]]))$bd
-
-# discrete vars: 
-discrete.imp.vars <- c("trainingF", "trainingM", "schoolingF", "schoolingM", "education", "superior", "compsize")
-sapply(1:length(discrete.imp.vars), function(i) 1-sum(diag(table(try2[,discrete.imp.vars[i]]  ,truth[,discrete.imp.vars[i]])))/sum(table(try2[,discrete.imp.vars[i]]  ,truth[,discrete.imp.vars[i]])))
-
-##### level 2 multivariate distribution recovery #####
-bd.test(x = select(try2, one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, one_of(continuous.imp.vars, discrete.imp.vars)))
-
-#### to do's: include coundaries for wealth values
-
-#estate.clean <- estate.clean %>% 
-#  mutate(estate = exp(lnestate)* mean(estate$other_estate_value, na.rm = T)) %>% 
-#  mutate(estate_limits = ifelse(is.na(estate_limits) & estate < 20000,1,
-#                                            ifelse(is.na(estate_limits) & estate >= 20000 & estate < 150000,2,
-#                                                   ifelse(is.na(estate_limits) & estate >= 150000 & estate < 500000,3,
-#                                                          ifelse(is.na(estate_limits) & estate >= 500000 & estate < 1000000,4,
-#                                                                 ifelse(is.na(estate_limits) & estate >= 1000000,5,estate_limits))))))
-
-# MICE imputation covariates from SOEP:
-
-#------------------------------------------------------------------------------------------------#
-#------------------------------------------------------------------------------------------------#
-#------------------------------------------------------------------------------------------------#
-############################################## MICE ##############################################
-#------------------------------------------------------------------------------------------------#
-#------------------------------------------------------------------------------------------------#
-#------------------------------------------------------------------------------------------------#
-dat <- mi.multiple.imp %>%  
-  mutate(employed = ifelse(lmstatus %in% c(1,2,4), 1,0)) %>% 
-  select(-lmstatus)
-
-imp <- mice(dat, maxit = 0, print=F)
-meth <- imp$method
-pred <- imp$predictorMatrix
-
-#pred[,"pid"] <- 0
-
-indepvars.all <- c("age", "sex", "ost", "bik", "wuma7", "employed", "inherit_filter",
-                   "citizen", "famstd", "gborn", "kidsu16", "partner", "saving", "lnsaving", 
-                   "lninheritance", "lnhhnetto", "schoolingF", "schoolingM", "compsize",
-                   "education")
-
-miss <- names(reliability[reliability>0])
-pred[,] <- 0
-
-for (i in 1:length(miss)){
-  pred[miss[i], indepvars.all[indepvars.all != miss[i]]] <- 1
+make.mnar <- function(data, prob=prob, cond = NULL){
+  data1 <- select(data, one_of(cond))  
+  for (i in 1: ncol(data1)){
+    if (is.numeric(data1[,i])){ 
+      data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])] = ifelse(sample(c(T, F),
+                              length(data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])]),
+                              replace=T, prob=c(p*2, 1-p*2)),
+                              NA,
+                              data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])])
+    } else {
+      print("still gotta work on that")
+    }
+  }
+  data <- cbind(select(data, -cond),data1)
+  return(data)
 }
- 
-#pred[lnwealthvars, c("lnorbis",filters)] <- 1
-pred[lnwealthvars, c("lnorbis")] <- 1
-
-# more variables for residence variables:
-indepvars.residence <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence_debt", "lnestate_debt", "selfempl",
-                         "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
-indepvars.residence.debt <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence", "lnestate", "selfempl",
-                        "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
-pred["lnresidence_debt", c(indepvars.residence.debt, "lnestate_debt")] <- 1
-pred["lnestate_debt", c(indepvars.residence.debt, "lnresidence_debt")] <- 1
-pred["lnresidence", c(indepvars.residence, "lnestate")] <- 1
-pred["lnestate", c(indepvars.residence, "lnresidence")] <- 1
-pred["consumer_debt_filter", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
-pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
-pred["lnbuilding", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
-
-
-mice.imp <- mice(dat, maxit = 15, predictorMatrix = pred ,print=F, seed=123, m=1)
-plot(mice.imp)
-
-stripplot(mice.imp)
-hell <- sapply(1:mice.imp$m, function(i) hellinger(mice.imp$imp$lnhhnetto[[i]], truth$lnhhnetto))
-hell1 <- hellinger(try2$lnhhnetto, multiple.imp$lnhhnetto)
 
 
 
-##### Simulation ####
+sum(is.na(data1))/length(data1[data1 != -99])
+
+
+
+data <- multiple.imp
+test <- make.mnar(data, prob = .1, cond = cond.vector)
+test <- select(test, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+
+gg_miss_var(test, show_pct = TRUE)
+
+
+
+
+
+
+
+
+
+
 
 k <- 5
 set.seed(1234)
-mi.multiple.imp <- NULL
-bn.imp <- NULL
-mice.imp <- NULL
+numCores <- detectCores() -1
 
 mi.multiple.imp <-  lapply(1:k, function(l) make.mcar(multiple.imp, prob=.1, cond = cond.vector))
 for (l in 1:k) { 
@@ -404,8 +376,12 @@ for (l in 1:k) {
 #mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
 #                                fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
 
-mi.structure <- lapply(1:k, function(l) structural.em(mi.multiple.imp[[l]][,names(mi.multiple.imp[[l]]) != "pid"], maximize = "hc",
-                              fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T))
+# superior is the bad guy!!!! 
+
+#mi.multiple.imp[[6]][,discrete.imp.vars] <- NULL 
+mi.structure <- mclapply(1:k, function(l) structural.em(mi.multiple.imp[[l]][,names(mi.multiple.imp[[l]]) != "pid"], maximize = "hc",
+                              fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T), mc.cores = numCores)
+
 
 sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[l]]$dag)))
 
@@ -417,10 +393,121 @@ for (l in 1:k){
 }
 bn <-  lapply(1:k, function(l) bn.fit(mi.structure[[l]]$dag, mi.structure[[l]]$imputed, method = "mle"))
 
-bn.imp <- lapply(1:k, function(l) bn.parents.imp(bn=bn[[l]], 
-                         dat=mi.multiple.imp[[l]]))
-
-mice.imp <- lapply(1:k, function(l) mice(mi.multiple.imp[[l]], maxit = 15, predictorMatrix = pred ,print=F, m=1))
+bn.imp <- mclapply(1:k, function(l) bn.parents.imp(bn=bn[[l]], 
+                         dat=mi.multiple.imp[[l]]), mc.cores = numCores)
 
 
+#### MICE ####
+for (l in 1:k){
+mi.multiple.imp[[l]] <- mi.multiple.imp[[l]] %>% 
+  mutate(employed = ifelse(lmstatus %in% c(1,2,4), 1,0))
+}
+imp <- mice(mi.multiple.imp[[1]], maxit = 0, print=F)
+meth <- imp$method
+pred <- imp$predictorMatrix
+rel_label <- miss_var_summary(mi.multiple.imp[[1]][,names(mi.multiple.imp[[1]]) != "pid"], order = T)
+reliability <- rel_label$pct_miss
+names(reliability) <- rel_label$variable
+#pred[,"pid"] <- 0
 
+indepvars.all <- c("age", "sex", "ost", "bik", "wuma7", "employed", "inherit_filter",
+                   "citizen", "famstd", "gborn", "kidsu16", "partner", "saving", "lnsaving", 
+                   "lninheritance", "lnhhnetto", "schoolingF", "schoolingM", "compsize",
+                   "education")
+
+miss <- names(reliability[reliability>0])
+pred[,] <- 0
+
+for (i in 1:length(miss)){
+  pred[miss[i], indepvars.all[indepvars.all != miss[i]]] <- 1
+}
+
+#pred[lnwealthvars, c("lnorbis",filters)] <- 1
+pred[lnwealthvars, c("lnorbis")] <- 1
+
+# more variables for residence variables:
+indepvars.residence <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence_debt", "lnestate_debt", "selfempl",
+                         "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
+indepvars.residence.debt <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence", "lnestate", "selfempl",
+                              "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
+pred["lnresidence_debt", c(indepvars.residence.debt, "lnestate_debt")] <- 1
+pred["lnestate_debt", c(indepvars.residence.debt, "lnresidence_debt")] <- 1
+pred["lnresidence", c(indepvars.residence, "lnestate")] <- 1
+pred["lnestate", c(indepvars.residence, "lnresidence")] <- 1
+pred["consumer_debt_filter", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
+pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
+pred["lnbuilding", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
+
+
+mice.imp <- mclapply(1:k, function(l) mice(mi.multiple.imp[[l]], maxit = 15, predictorMatrix = pred ,print=F, m=1), mc.cores = numCores)
+
+mice.imp.complete <- lapply(1:k, function(l) mice::complete(mice.imp[[l]],action="long"))
+
+
+##### 1st. Levels of Statistical Consistency: continuous vars ####
+
+continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
+lvl1.bn <- sapply(1:k,
+                  function(l) sapply(1:length(continuous.imp.vars),
+                      function(i) 
+                        ks.test(bn.imp[[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic))
+lvl1.bn <- as.data.frame(t(lvl1.bn))
+colnames(lvl1.bn) <- continuous.imp.vars
+
+lvl1.mice <- sapply(1:k,
+                    function(l) 
+                      sapply(1:length(continuous.imp.vars), function(i) 
+                        ks.test(mice.imp.complete[[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic))
+lvl1.mice <- as.data.frame(t(lvl1.mice))
+colnames(lvl1.mice) <- continuous.imp.vars
+
+sapply(lvl1.bn, mean, na.omit =T) < sapply(lvl1.mice, mean, na.omit =T)
+
+##### 2nd. Levels of Statistical Consistency: continuous vars####
+
+lvl2.bn <- sapply(1:k, function(l) 
+  bd.test(bn.imp[[l]][,continuous.imp.vars],truth[,continuous.imp.vars])$statistic)
+
+lvl2.mice <- sapply(1:k, function(l) 
+  bd.test(mice.imp.complete[[l]][,continuous.imp.vars],truth[,continuous.imp.vars])$statistic)
+
+mean(lvl2.bn)<mean(lvl2.mice)
+
+##### 1st. Levels of Statistical Consistency: discrete vars ####
+
+discrete.imp.vars <- c("trainingF", "trainingM", "schoolingF", "schoolingM", "education", "superior", "compsize")
+lvl1.discrete.bn <- sapply(1:k,
+                           function(l) sapply(1:length(discrete.imp.vars),
+                            function(i) 1-sum(diag(table(bn.imp[[l]][,discrete.imp.vars[i]],
+                                                truth[,discrete.imp.vars[i]])))/sum(table(bn.imp[[l]][,discrete.imp.vars[i]]
+                                                   ,truth[,discrete.imp.vars[i]]))))
+lvl1.discrete.bn <- as.data.frame(t(lvl1.discrete.bn))
+colnames(lvl1.discrete.bn) <- discrete.imp.vars
+
+lvl1.discrete.mice <- sapply(1:k,
+                           function(l) sapply(1:length(discrete.imp.vars),
+                                              function(i) 1-sum(diag(table(mice.imp.complete[[l]][,discrete.imp.vars[i]],
+                                                                           truth[,discrete.imp.vars[i]])))/sum(table(mice.imp.complete[[l]][,discrete.imp.vars[i]]
+                                                                                                                     ,truth[,discrete.imp.vars[i]]))))
+lvl1.discrete.mice <- as.data.frame(t(lvl1.discrete.mice))
+colnames(lvl1.discrete.mice) <- discrete.imp.vars
+
+sapply(lvl1.discrete.bn, mean) < sapply(lvl1.discrete.mice, mean)
+
+##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
+
+lvl2.discrete.bn <- sapply(1:k, function(l) bd.test(x = select(bn.imp[[l]], 
+                            one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
+                              one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
+
+lvl2.discrete.mice <- sapply(1:k, function(l) bd.test(x = select(mice.imp.complete[[l]], 
+                            one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
+                              one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
+
+lvl2.discrete.bn
+lvl2.discrete.mice
+
+mean(lvl2.discrete.bn) < mean(lvl2.discrete.mice)
+
+mean(lvl2.discrete.bn)
+mean(lvl2.discrete.mice)

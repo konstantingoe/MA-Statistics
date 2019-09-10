@@ -79,6 +79,7 @@ pacman::p_load(
   missForest,
   sna,
   intergraph,
+  missCompare,
   scales,
   network,
   GGally,
@@ -93,7 +94,7 @@ pacman::p_load(
   tidyverse)
 
 
-#options(scipen = 100)
+options(scipen = 100)
 options(digits = 4)
 
 
