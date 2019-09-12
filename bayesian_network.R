@@ -233,8 +233,8 @@ for (i in 1:length(lnrecode.vars)){
 truth <- select(truth, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
 gg_miss_var(truth, show_pct = TRUE)
 
-from <- c(filters, rep("lmstatus", 6))
-to <- c(lnwealthvars, "lnjobduration", "lnworkinghours", "lnwage_gross", "lnwage_net", "compsize", "superior")
+from <- c(filters, rep("lmstatus", 6), "saving", "inherit_filter")
+to <- c(lnwealthvars, "lnjobduration", "lnworkinghours", "lnwage_gross", "lnwage_net", "compsize", "superior", "lnsaving", "lninheritance")
 whitelist <- as.data.frame(cbind(from,to)) 
 
 
@@ -259,101 +259,97 @@ cond.vector <- c(lnrecode.vars, "lnhhnetto", "schoolingF", "schoolingM", "traini
                           ##### Simulation ####
 #### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
 
-data <- multiple.imp
-test <- select(test, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+#MAR
 
-gg_miss_var(test, show_pct = T)
-patterns.vars <- c(rerecode.vars, "hhnetto", "schoolingF", "schoolingM", "trainingF", "trainingM", "compsize", "superior", "education")
-patterns <- md.pattern(select(data, one_of(patterns.vars)))
-patterns <- patterns[-nrow(patterns),]
-patterns <- patterns[,-ncol(patterns)]
+x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
+                   "citizen", "gborn", "kidsu16", "partner", "saving")
 
-
-other.vars <- setdiff(names(test), cond.vector)
-colnames(patterns.others) <- other.vars
-patterns.others <- matrix(data = 1, nrow = nrow(patterns), ncol = length(other.vars))
-
-patterns.final <- as.data.frame(cbind(patterns.others, patterns)) 
-
-result <- ampute(test, prop = .1, bycases = T, patterns = patterns.final, mech = "MAR")
-gg_miss_var(result$amp, show_pct = TRUE)
-
-
-
-mar <- produce_NA(test[,cond.vector], mechanism="MAR", perc.missing = 0.1)
-
-
-
-# MNAR
-
-
-gg_miss_var(data1, show_pct = TRUE)
-data1 <- select(data, one_of(cond))  
-
-prop.m = .1  # 10% missingness
-sort.data <- NULL
-nmar <- NULL
-data.nmar <- NULL
-for (i in 1:ncol(data1)){
-  if (is.numeric(data1[,i])){ 
-    sort.data <-  sort(data1[data1[,i] != -99,i], decreasing=TRUE)
-    nmar   <-  sort.data[ceiling(prop.m*length(data1[,i]))]
-    data1[,i] <-  ifelse(data1[,i] > nmar, NA, data1[,i]) 
-  } else {
-    
+make.mar <- function(data, miss.prob=miss.prob, cond = NULL, x.vars = NULL){
+  data1 <- select(data, one_of(cond, x.vars))  
+  f <- function(t) {            # Define a path through parameter space
+    sapply(t, function(y) mean(1 / (1 + exp(-y -x %*% beta))))
   }
-}
-
-sort.y = apply(data1, 2, sort, decreasing=TRUE)
-nmar   = sort.y[ceiling(prop.m*length(y))]
-y.nmar = ifelse(y>nmar, NA, y)  # doesn't show up when heavier
-
-
-# Generate the true data
-y1 <- rbinom(100, size=1, prob=0.1)
-# Generate the missing process. Depends on the "true" observed value
-r  <- rbinom(length(y1), size=1, prob=c(.1, .1)[y1+1])
-y  <- y1
-y[r==1] <- NA
-
-
-p <- .1 
-
-make.mnar <- function(data, prob=prob, cond = NULL){
-  data1 <- select(data, one_of(cond))  
-  for (i in 1: ncol(data1)){
-    if (is.numeric(data1[,i])){ 
-      data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])] = ifelse(sample(c(T, F),
-                              length(data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])]),
-                              replace=T, prob=c(p*2, 1-p*2)),
-                              NA,
-                              data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])])
+  for (i in 1: length(cond)){
+    if (is.numeric(data1[,cond[i]])){ 
+    #define formula for each of the missing dependent vars
+    frmla <- as.formula(paste(cond[i], paste(x.vars[1:length(x.vars)], sep = "", 
+                                                             collapse = " + "), sep = " ~ "))
+    x <- sapply(select(data1[data1[,cond[i]] != -99,], one_of(x.vars)), as.numeric)
+    reg <- lm(frmla, data = as.data.frame(sapply(data1[data1[,cond[i]] != -99,], as.numeric)))
+    beta <- reg$coefficients[-1]  # Fix the coefficients through regression
+    if (sum(is.na(beta)) > 0){
+    beta <- na.omit(beta)
+    small.names <- names(beta)
+    x <- x[,small.names] 
     } else {
-      print("still gotta work on that")
+      results <- sapply(miss.prob, function(miss.prob) {
+        alpha <- uniroot(function(t) f(t) - miss.prob, c(-1e6, 1e6), tol = .Machine$double.eps^0.5)$root
+        c(alpha, f(alpha))})
+      dimnames(results) <- list(c("alpha", "f(alpha)"), p=miss.prob)
+    }
+    # Find parameters (alpha, beta) yielding any specified proportions `p`.
+     
+    beta <- c(results[1,1], beta)
+    ones <- rep(1,nrow(x))
+    x.c <- cbind(ones,x)
+    
+    mod <- as.numeric(beta %*% t(x.c)) 
+    rp <- exp(mod) / (exp(mod) + 1) # Suppress values between 0 and 1 via inverse-logit
+    
+    n1 <- nrow(data1) - nrow(x)
+    n2 <- nrow(x)
+    p1 <- 0
+    p2 <- rp
+    n <- ifelse(data1[,cond[i]] == -99, n1, n2)
+    p <- ifelse(data1[,cond[i]] == -99, p1, p2)
+    data1[rbinom(n, 1, p) == 1,cond[i]] <- NA
+    
+    } else {
+    frmla <- as.formula(paste(cond[i], paste(x.vars[1:length(x.vars)], sep = "", 
+                                             collapse = " + "), sep = " ~ "))
+    x <- sapply(select(data1[data1[,cond[i]] != -2,], one_of(x.vars)), as.numeric)
+    reg <- lm(frmla, data = as.data.frame(sapply(data1[data1[,cond[i]] != -2,], as.numeric)))
+    beta <- reg$coefficients[-1]  # Fix the coefficients through regression
+    if (sum(is.na(beta)) > 0){
+      beta <- na.omit(beta)
+      small.names <- names(beta)
+      x <- x[,small.names] 
+    } else {
+      results <- sapply(miss.prob, function(miss.prob) {
+        alpha <- uniroot(function(t) f(t) - miss.prob, c(-1e6, 1e6), tol = .Machine$double.eps^0.5)$root
+        c(alpha, f(alpha))})
+      dimnames(results) <- list(c("alpha", "f(alpha)"), p=miss.prob)
+    }
+    # Find parameters (alpha, beta) yielding any specified proportions `p`.
+    
+    beta <- c(results[1,1], beta)
+    ones <- rep(1,nrow(x))
+    x.c <- cbind(ones,x)
+    
+    mod <- as.numeric(beta %*% t(x.c)) 
+    rp <- exp(mod) / (exp(mod) + 1) # Suppress values between 0 and 1 via inverse-logit
+    
+    n1 <- nrow(data1) - nrow(x)
+    n2 <- nrow(x)
+    p1 <- 0
+    p2 <- rp
+    n <- ifelse(data1[,cond[i]] == -2, n1, n2)
+    p <- ifelse(data1[,cond[i]] == -2, p1, p2)
+    data1[rbinom(n, 1, p) == 1,cond[i]] <- NA
     }
   }
-  data <- cbind(select(data, -cond),data1)
+  data <- cbind(select(data, -cond, -x.vars),data1)
   return(data)
 }
 
 
 
-sum(is.na(data1))/length(data1[data1 != -99])
+data <- make.mar(multiple.imp, miss.prob = .1, cond = cond.vector, x.vars = x.vars)
+data <- make.mnar(multiple.imp, miss.prob = .1, cond = cond.vector)
 
+data <- select(data, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
 
-
-data <- multiple.imp
-test <- make.mnar(data, prob = .1, cond = cond.vector)
-test <- select(test, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
-
-gg_miss_var(test, show_pct = TRUE)
-
-
-
-
-
-
-
+gg_miss_var(data, show_pct = T)
 
 
 
@@ -361,8 +357,10 @@ gg_miss_var(test, show_pct = TRUE)
 k <- 5
 set.seed(1234)
 numCores <- detectCores() -1
+miss.mechanism <- list("MCAR" = make.mcar, "MAR" = make.mar, "MNAR" = make.mnar)
 
-mi.multiple.imp <-  lapply(1:k, function(l) make.mcar(multiple.imp, prob=.1, cond = cond.vector))
+mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
+  lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=.1, cond = cond.vector))), nm=names(miss.mechanism))
 for (l in 1:k) { 
   for (i in 1:length(lnrecode.vars)){
     mi.multiple.imp[[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[l]][,lnrecode.vars[i]] == -99, 

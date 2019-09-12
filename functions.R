@@ -10,14 +10,14 @@ normalize.log <- function(x){
 }
 
 #generate MCAR data from full dataset
-make.mcar <- function(data, prob=prob, cond = NULL){
+make.mcar <- function(data, miss.prob=miss.prob, cond = NULL){
   data1 <- select(data, one_of(cond))  
   for (i in 1: ncol(data1)){
     if (is.numeric(data1[,i])){ 
       n1 <- nrow(data1) - nrow(data1[data1[,i] != -99,])
       n2 <- nrow(data1[data1[,i] != -99,])
       p1 <- 0
-      p2 <- prob
+      p2 <- miss.prob
       n <- ifelse(data1[,i] == -99, n1, n2)
       p <- ifelse(data1[,i] == -99, p1, p2)
       data1[rbinom(n, 1, 1-p) == 0,i] <- NA
@@ -25,12 +25,131 @@ make.mcar <- function(data, prob=prob, cond = NULL){
       n1 <- nrow(data1) - nrow(data1[data1[,i] != -2,])
       n2 <- nrow(data1[data1[,i] != -2,])
       p1 <- 0
-      p2 <- prob
+      p2 <- miss.prob
       n <- ifelse(data1[,i] == -2, n1, n2)
       p <- ifelse(data1[,i] == -2, p1, p2)
       data1[rbinom(n, 1, 1-p) == 0,i] <- NA
     }  
   }
+  data <- cbind(select(data, -cond),data1)
+  return(data)
+}
+
+
+#generate MAR data from full dataset
+
+make.mar <- function(data, miss.prob=miss.prob, cond = NULL, x.vars = NULL){
+  data1 <- select(data, one_of(cond, x.vars))  
+  f <- function(t) {            # Define a path through parameter space
+    sapply(t, function(y) mean(1 / (1 + exp(-y -x %*% beta))))
+  }
+  for (i in 1: length(cond)){
+    if (is.numeric(data1[,cond[i]])){ 
+      #define formula for each of the missing dependent vars
+      frmla <- as.formula(paste(cond[i], paste(x.vars[1:length(x.vars)], sep = "", 
+                                               collapse = " + "), sep = " ~ "))
+      x <- sapply(select(data1[data1[,cond[i]] != -99,], one_of(x.vars)), as.numeric)
+      reg <- lm(frmla, data = as.data.frame(sapply(data1[data1[,cond[i]] != -99,], as.numeric)))
+      beta <- reg$coefficients[-1]  # Fix the coefficients through regression
+      if (sum(is.na(beta)) > 0){
+        beta <- na.omit(beta)
+        small.names <- names(beta)
+        x <- x[,small.names] 
+      } else {
+        results <- sapply(miss.prob, function(miss.prob) {
+          alpha <- uniroot(function(t) f(t) - miss.prob, c(-1e6, 1e6), tol = .Machine$double.eps^0.5)$root
+          c(alpha, f(alpha))})
+        dimnames(results) <- list(c("alpha", "f(alpha)"), p=miss.prob)
+      }
+      # Find parameters (alpha, beta) yielding any specified proportions `p`.
+      
+      beta <- c(results[1,1], beta)
+      ones <- rep(1,nrow(x))
+      x.c <- cbind(ones,x)
+      
+      mod <- as.numeric(beta %*% t(x.c)) 
+      rp <- exp(mod) / (exp(mod) + 1) # Suppress values between 0 and 1 via inverse-logit
+      
+      n1 <- nrow(data1) - nrow(x)
+      n2 <- nrow(x)
+      p1 <- 0
+      p2 <- rp
+      n <- ifelse(data1[,cond[i]] == -99, n1, n2)
+      p <- ifelse(data1[,cond[i]] == -99, p1, p2)
+      data1[rbinom(n, 1, p) == 1,cond[i]] <- NA
+      
+    } else {
+      frmla <- as.formula(paste(cond[i], paste(x.vars[1:length(x.vars)], sep = "", 
+                                               collapse = " + "), sep = " ~ "))
+      x <- sapply(select(data1[data1[,cond[i]] != -2,], one_of(x.vars)), as.numeric)
+      reg <- lm(frmla, data = as.data.frame(sapply(data1[data1[,cond[i]] != -2,], as.numeric)))
+      beta <- reg$coefficients[-1]  # Fix the coefficients through regression
+      if (sum(is.na(beta)) > 0){
+        beta <- na.omit(beta)
+        small.names <- names(beta)
+        x <- x[,small.names] 
+      } else {
+        results <- sapply(miss.prob, function(miss.prob) {
+          alpha <- uniroot(function(t) f(t) - miss.prob, c(-1e6, 1e6), tol = .Machine$double.eps^0.5)$root
+          c(alpha, f(alpha))})
+        dimnames(results) <- list(c("alpha", "f(alpha)"), p=miss.prob)
+      }
+      # Find parameters (alpha, beta) yielding any specified proportions `p`.
+      
+      beta <- c(results[1,1], beta)
+      ones <- rep(1,nrow(x))
+      x.c <- cbind(ones,x)
+      
+      mod <- as.numeric(beta %*% t(x.c)) 
+      rp <- exp(mod) / (exp(mod) + 1) # Suppress values between 0 and 1 via inverse-logit
+      
+      n1 <- nrow(data1) - nrow(x)
+      n2 <- nrow(x)
+      p1 <- 0
+      p2 <- rp
+      n <- ifelse(data1[,cond[i]] == -2, n1, n2)
+      p <- ifelse(data1[,cond[i]] == -2, p1, p2)
+      data1[rbinom(n, 1, p) == 1,cond[i]] <- NA
+    }
+  }
+  data <- cbind(select(data, -cond, -x.vars),data1)
+  return(data)
+}
+
+
+
+
+#generate MNAR data from full dataset
+make.mnar <- function(data, miss.prob=miss.prob, cond = NULL){
+  data1 <- select(data, one_of(cond))  
+  for (i in 1: ncol(data1)){
+    if (is.numeric(data1[,i])){ 
+      data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])] = ifelse(sample(c(T, F),
+                                                                                                               length(data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])]),
+                                                                                                               replace=T, prob=c(miss.prob*2, 1-miss.prob*2)),
+                                                                                                        NA,
+                                                                                                        data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])])
+    } else if (is.ordered(data1[,i])) {
+      n1 <- nrow(data1[data1[,i] == -2,])
+      n2 <- nrow(data1[data1[,i] != -2,])
+      n <- ifelse(data1[,i] == -2, n1, n2)
+      p1 <- 0
+      p2 <- miss.prob/((sum(data1[,i] != max(data1[,i]) & data1[,i] != -2)/n2) + 2*(sum(data1[,i] == max(data1[,i]) & data1[,i] != -2)/n2))
+      p3 <- 2*p2 ### weight p2 and p3 by the percentage of occurance of each cell 
+      p <- ifelse(data1[,i] == -2, p1, ifelse(data1[,i] == max(data1[,i]), p3, p2))
+      r  <- rbinom(n, size = 1, prob=p)
+      data1[r==1,i] <- NA
+    } else {
+      n1 <- nrow(data1[data1[,i] == -2,])
+      n2 <- nrow(data1[data1[,i] != -2,])
+      n <- ifelse(data1[,i] == -2, n1, n2)
+      p1 <- 0
+      p2 <- miss.prob/((sum(as.numeric(data1[,i]) != max(as.numeric(data1[,i])) & data1[,i] != -2)/n2) + 2*(sum(as.numeric(data1[,i]) == max(as.numeric(data1[,i])) & data1[,i] != -2)/n2))
+      p3 <- 2*p2 ### weight p2 and p3 by the percentage of occurance of each cell 
+      p <- ifelse(data1[,i] == -2, p1, ifelse(as.numeric(data1[,i]) == max(as.numeric(data1[,i])), p3, p2))
+      r  <- rbinom(n, size = 1, prob=p)
+      data1[r==1,i] <- NA    }
+  }  
   data <- cbind(select(data, -cond),data1)
   return(data)
 }
