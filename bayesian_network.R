@@ -320,24 +320,35 @@ bn.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
                          dat=mi.multiple.imp[[m]][[l]]), mc.cores = numCores), mc.cores = numCores), nm = miss.mech.vec)
 
 
-#### Begin with second BNMB imputation :
+#### Begin with second BNRC imputation :
 
 
+structure.test <- mi.structure$MCAR[[1]]$dag
+bnlearn::mb(structure.test,cond.vector[1])
 
+# Bayesian Network Reliability Chain (BNRC) algorithm:
+# Given Structure G_t retrieve Markov blanket of node X_t that is the most reliable, meaning where there is the lowest missing 
+# percentage. Whenever X_t is missing draw value from the conditional distribution, that is, conditional on the Markov blanket set. 
+# Should one variable in the Markov blanket set be missing, give that observation the mean as an initial value. 
+# This way, fully impute X_t. 
 
+# Now, continue to the nex least reliable node X_t+1 and do the same. Should X_t be included in the Markov blanket set of X_t+1
+# do not use the mean, but the just imputed values. Should there be a variable in the Markov blanket set that is missing and has not yet been 
+# imputed, again fill those missings in by the mean. This way, proceed up the reliability order until all nodes are filled in. 
+# More reliable variables will thus more likely have missing observations in der Markov parent set, while less reliable ones
+# have less missings in their conditioning set. 
 
+# This completes the first iteration of the chain. For the second iteration, go back to the first node X_t set the initially imputed values back
+# to missing and impute them by drawing from the Markov blanket conditional distribution. Now we don't need to use any mean imputation because the Markov blanket
+# only consists of complete variables from the previous iteration. Go through the reliability order, everytime updating the previously generated imputed values by the
+# new ones. By the end of this iteration, all nodes are complete and none of them directly depends on the mean anymore. 
 
+# Now got back the first node X_t and repeat this procedure, that is dropping all that were missing initially and imputing given the
+# Markov blanket given the imputed values from the previous iteration. 
 
-
-
-
-
-
-
-
-
-
-
+# Repeat going through this chain frequently enough so that the imputed values are (almost surely) independent from the initial mean imputation.
+# find some stopping criterion 
+# this could also be thought of as a bootstrap case... 
 
 
 
@@ -427,6 +438,47 @@ for (m in 1:length(miss.mech.vec)){
 
 setNames(lapply(1:length(miss.mech.vec), function(m) 
   sapply(lvl1.bn[[m]], mean, na.omit =T) < sapply(lvl1.mice[[m]], mean, na.omit =T)), nm = miss.mech.vec)
+
+#### Latex table representation: 
+
+table.imp <- list("BN" = lvl1.bn, "MICE" = lvl1.mice)
+
+level1.table <-   sapply(seq_along(table.imp), function(i)
+                        sapply(table.imp[[i]][[1]], mean, na.omit =T))
+for (m in 2:3){
+level1.table <- cbind(level1.table, sapply(seq_along(table.imp), function(i)
+                    sapply(table.imp[[i]][[m]], mean, na.omit =T)))
+}
+colnames(level1.table) <- rep(names(table.imp),3)
+level1.table <- round(level1.table, digits = 4)
+
+level1.table.sd <-   sapply(seq_along(table.imp), function(i)
+                      sapply(table.imp[[i]][[1]], sd, na.omit =T))
+for (m in 2:3){
+  level1.table.sd <- cbind(level1.table.sd, sapply(seq_along(table.imp), function(i)
+                      sapply(table.imp[[i]][[m]], sd, na.omit =T)))
+}
+colnames(level1.table) <- rep(names(table.imp),3)
+
+level1.table.sd <- apply(round(level1.table.sd, digits = 4), 2, function(i) paste("(", i, ")", sep=""))
+
+output <- NULL
+table.names <- NULL
+table.empty <- rep("",length(continuous.imp.vars))
+for (i in 1:nrow(level1.table)){
+  output <- rbind(output, level1.table[i,])
+  table.names <- c(table.names,continuous.imp.vars[i])
+  output <- rbind(output, level1.table.sd[i,])
+  table.names <- c(table.names,table.empty[i])
+}
+
+rownames(output) <- table.names
+
+stargazer(output, digits = 4)
+
+
+
+
 
 ##### 2nd. Levels of Statistical Consistency: continuous vars####
 
