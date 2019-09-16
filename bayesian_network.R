@@ -266,7 +266,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 
 
-k <- 5
+k <- 100
 set.seed(1234)
 numCores <- detectCores() -1
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
@@ -300,7 +300,7 @@ mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T),
                             mc.cores = numCores)), nm = miss.mech.vec)
 
-
+save(mi.structure, file = "structure.RDA")
 lapply(1:length(miss.mech.vec), function(m) sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[l]]$dag))))
 
 for (m in 1:length(miss.mech.vec)){
@@ -319,6 +319,7 @@ bn.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
             mclapply(1:k, function(l) bn.parents.imp(bn=bn[[m]][[l]], 
                          dat=mi.multiple.imp[[m]][[l]]), mc.cores = numCores), mc.cores = numCores), nm = miss.mech.vec)
 
+save(bn.imp, file = "bnimp.RDA")
 
 #### Begin with second BNRC imputation :
 
@@ -356,6 +357,7 @@ bnlearn::mb(structure.test,cond.vector[1])
 #### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
                               #### MICE ####
 #### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
+## the reason why mice performs poorly is the inability to follow logical constraints... sometimes "0" values will be impuated
 
 for (m in 1:length(miss.mech.vec)){
   for (l in 1:k){
@@ -406,6 +408,10 @@ mice.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
 
 mice.imp.complete <- setNames(mclapply(1:length(miss.mech.vec), function(m)
                       lapply(1:k, function(l) mice::complete(mice.imp[[m]][[l]],action="long")),mc.cores = numCores), nm = miss.mech.vec)
+
+
+
+save(mice.imp, file = "mice.RDA")
 
 
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
@@ -474,7 +480,10 @@ for (i in 1:nrow(level1.table)){
 
 rownames(output) <- table.names
 
-stargazer(output, digits = 4)
+output2 <- output[1:24,]
+
+stargazer(output2, digits = 4, title = "Comparison of BNimp and MICE recovering the marginal continuous distributions",
+          out = "level1cont.tex", colnames = T)
 
 
 
