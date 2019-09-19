@@ -126,6 +126,7 @@ targetvars <- c("pid", "age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma
 
 data <- select(mydata, one_of(targetvars))
 gg_miss_var(data, show_pct = TRUE)
+ggsave("missing.pdf")
 
 #all except 12 wealth components plus inheritance and saving which will also be imputed when filter is imputed 
 
@@ -239,10 +240,9 @@ whitelist <- as.data.frame(cbind(from,to))
 
 
 truth.structure <- hc(truth[, -which(names(truth) == "pid")], whitelist = whitelist, score = "bic-cg")
-ggnet2(truth.structure$arcs, 
+bnplot <- ggnet2(truth.structure$arcs,
        arrow.size = 9, arrow.gap = 0.025, label = T)
-bnlearn::graphviz.plot(truth.structure)
-
+ggsave("truthstruct.pdf", plot = bnplot)
 ###### truth done ######
 
 #### prepare simulation #####
@@ -413,6 +413,10 @@ mice.imp.complete <- setNames(mclapply(1:length(miss.mech.vec), function(m)
 
 save(mice.imp, file = "mice.RDA")
 
+#### trying to solve the nearest neighbor problem... post processing?
+#Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
+# the way would be to define a "custom made" pmm function where structural zeroes are not considered in the pmm algorithm!
+
 
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
 
@@ -464,7 +468,7 @@ for (m in 2:3){
   level1.table.sd <- cbind(level1.table.sd, sapply(seq_along(table.imp), function(i)
                       sapply(table.imp[[i]][[m]], sd, na.omit =T)))
 }
-colnames(level1.table) <- rep(names(table.imp),3)
+colnames(level1.table.sd) <- rep(names(table.imp),3)
 
 level1.table.sd <- apply(round(level1.table.sd, digits = 4), 2, function(i) paste("(", i, ")", sep=""))
 
@@ -481,12 +485,14 @@ for (i in 1:nrow(level1.table)){
 rownames(output) <- table.names
 
 output2 <- output[1:24,]
+table.names2 <- c("Residence", "", "Estate", "", "Assets", "", "Build. Loan", "", "Life Ins.", 
+                  "", "Business Ass.", "", "Vehicles", "", "Tangibles", "",
+                  "Res. debt", "", "Est. debt", "", "Consumer debt", "", "Student debt", "")
+rownames(output2) <- table.names2
+
 
 stargazer(output2, digits = 4, title = "Comparison of BNimp and MICE recovering the marginal continuous distributions",
-          out = "level1cont.tex", colnames = T)
-
-
-
+          out = "level1cont.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Mean value over 100 Monte Carlo draws. Simulation standard errors in brackets")
 
 
 ##### 2nd. Levels of Statistical Consistency: continuous vars####
@@ -534,7 +540,45 @@ for (m in 1:length(miss.mech.vec)){
   colnames(lvl1.discrete.mice[[m]]) <- discrete.imp.vars
 }
 
-setNames(lapply(1:length(miss.mech.vec), function(m) sapply(lvl1.discrete.bn[[m]], mean) < sapply(lvl1.discrete.mice[[m]], mean)), nm = miss.mech.vec)
+#### Latex Tables 1. level discrete vars
+
+table.disc.imp <- list("BN" = lvl1.discrete.bn, "MICE" = lvl1.discrete.mice)
+
+level1.disc.table <-   sapply(seq_along(table.disc.imp), function(i)
+  sapply(table.disc.imp[[i]][[1]], mean, na.omit =T))
+for (m in 2:3){
+  level1.disc.table <- cbind(level1.disc.table, sapply(seq_along(table.disc.imp), function(i)
+    sapply(table.disc.imp[[i]][[m]], mean, na.omit =T)))
+}
+colnames(level1.disc.table) <- rep(names(table.disc.imp),3)
+level1.disc.table <- round(level1.disc.table, digits = 4)
+
+level1.disc.table.sd <-   sapply(seq_along(table.disc.imp), function(i)
+  sapply(table.disc.imp[[i]][[1]], sd, na.omit =T))
+for (m in 2:3){
+  level1.disc.table.sd <- cbind(level1.disc.table.sd, sapply(seq_along(table.disc.imp), function(i)
+    sapply(table.disc.imp[[i]][[m]], sd, na.omit =T)))
+}
+colnames(level1.disc.table.sd) <- rep(names(table.disc.imp),3)
+
+level1.disc.table.sd <- apply(round(level1.disc.table.sd, digits = 4), 2, function(i) paste("(", i, ")", sep=""))
+
+output <- NULL
+table.names <- NULL
+table.empty <- rep("",length(discrete.imp.vars))
+for (i in 1:nrow(level1.disc.table)){
+  output <- rbind(output, level1.disc.table[i,])
+  table.names <- c(table.names,discrete.imp.vars[i])
+  output <- rbind(output, level1.disc.table.sd[i,])
+  table.names <- c(table.names,table.empty[i])
+}
+
+rownames(output) <- table.names
+
+
+stargazer(output, digits = 4, title = "Comparison of BNimp and MICE recovering the true classification of discrete variables",
+          out = "level1disc.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Misclassification error mean value over 100 Monte Carlo draws. Simulation standard errors in brackets")
+
 
 ##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
 
@@ -550,10 +594,82 @@ lvl2.discrete.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
                               one_of(continuous.imp.vars, discrete.imp.vars)))$statistic),
                                  mc.cores = numCores), nm = miss.mech.vec)
 
-lvl2.discrete.bn
-lvl2.discrete.mice
+
+#### plotting mean over repetitions:
+
+reps <- 1:100
+bn.mean <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+mice.mean <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+bn.sdup <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+bn.sdlow <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+mice.sdup <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+mice.sdlow <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+for (m in 1:3){
+  for (i in 1:k){
+      bn.mean[[m]][i] <- mean(lvl2.discrete.bn[[m]][1:i])
+      bn.sdup[[m]][i] <- mean(lvl2.discrete.bn[[m]][1:i]) + sd(lvl2.discrete.bn[[m]][1:i])
+      bn.sdlow[[m]][i] <- mean(lvl2.discrete.bn[[m]][1:i]) - sd(lvl2.discrete.bn[[m]][1:i])
+      
+      mice.mean[[m]][i] <- mean(lvl2.discrete.mice[[m]][1:i])
+      mice.sdup[[m]][i] <- mean(lvl2.discrete.mice[[m]][1:i]) + sd(lvl2.discrete.mice[[m]][1:i])
+      mice.sdlow[[m]][i] <- mean(lvl2.discrete.mice[[m]][1:i]) - sd(lvl2.discrete.mice[[m]][1:i])
+  }
+}
+
+plotdata <- as.data.frame(cbind(reps,bn.mean[[1]], bn.sdup[[1]], bn.sdlow[[1]],
+                                mice.mean[[1]], mice.sdup[[1]], mice.sdlow[[1]],
+                                bn.mean[[2]], bn.sdup[[2]], bn.sdlow[[2]],
+                                mice.mean[[2]], mice.sdup[[2]], mice.sdlow[[2]],
+                                bn.mean[[3]], bn.sdup[[3]], bn.sdlow[[3]],
+                                mice.mean[[3]], mice.sdup[[3]], mice.sdlow[[3]]))
+colnames(plotdata) <-  c("Repetition", "bnMCAR", "bnsdupMCAR", "bnsdlowMCAR",
+                         "miceMCAR", "micesdupMCAR", "micesdlowMCAR",
+                         "bnMNAR", "bnsdupMNAR", "bnsdlowMNAR",
+                         "miceMNAR", "micesdupMNAR", "micesdlowMNAR",
+                         "bnMAR", "bnsdupMAR", "bnsdlowMAR",
+                         "miceMAR", "micesdupMAR", "micesdlowMAR")
+
+plot1 <- ggplot() +
+  geom_line(data = plotdata, aes(Repetition,bnMCAR,color="BNimp MCAR")) +
+  geom_line(data = plotdata, aes(Repetition,miceMCAR,color="MICE MCAR")) +
+  labs(color="Imputation scheme") +
+  ylab("Ball divergence") +
+  theme(legend.position = "bottom")
+
+ggsave("mcarplot.pdf")
+
+plot2 <- ggplot() +
+  geom_line(data = plotdata, aes(Repetition,bnMNAR,color="BNimp MNAR")) +
+  geom_line(data = plotdata, aes(Repetition,miceMNAR,color="MICE MNAR")) +
+  labs(color="Imputation schemes") +
+  ylab("Ball divergence") +
+  theme(legend.position = "bottom")
+
+ggsave("mnarplot.pdf")
+
+plot3 <- ggplot() +
+  geom_line(data = plotdata, aes(Repetition,bnMAR,color="BNimp MAR")) +
+  geom_line(data = plotdata, aes(Repetition,miceMAR,color="MICE MAR")) +
+  labs(color="Imputation schemes") +
+  ylab("Ball divergence") +
+  theme(legend.position = "bottom")
+
+ggsave("marplot.pdf")
+
 
 setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.bn[[m]]) < mean(lvl2.discrete.mice[[m]])), nm = miss.mech.vec)
 
 setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.bn[[m]])), nm = miss.mech.vec)
 setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.mice[[m]])), nm = miss.mech.vec)
+
+
+### Make table for presentation:
+
+presentation <- select(data, one_of("age", "sex",wealth.vars))
+presentation$female <- as.numeric(presentation$sex) -1
+presentation <- presentation[,c("age", "female",wealth.vars)]
+stargazer(presentation, out = "summarywealth.tex", notes = "SOEPv36 - TopW Data; Author's calculations")
+
+
+
+
