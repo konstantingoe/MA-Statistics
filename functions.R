@@ -9,6 +9,14 @@ normalize.log <- function(x){
   }
 }
 
+mean_or_mode <- function(y){
+  if (is.numeric(y)){
+    mean(y, na.rm=T)
+  } else if (is.factor(y)){
+    names(sort(-table(y)))[1]
+  }
+}
+
 #generate MCAR data from full dataset
 make.mcar <- function(data, miss.prob=miss.prob, cond = NULL){
   data1 <- select(data, one_of(cond))  

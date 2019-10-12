@@ -300,7 +300,7 @@ mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T),
                             mc.cores = numCores)), nm = miss.mech.vec)
 
-save(mi.structure, file = "structure.RDA")
+#save(mi.structure, file = "structure.RDA")
 lapply(1:length(miss.mech.vec), function(m) sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[l]]$dag))))
 
 for (m in 1:length(miss.mech.vec)){
@@ -319,13 +319,73 @@ bn.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
             mclapply(1:k, function(l) bn.parents.imp(bn=bn[[m]][[l]], 
                          dat=mi.multiple.imp[[m]][[l]]), mc.cores = numCores), mc.cores = numCores), nm = miss.mech.vec)
 
-save(bn.imp, file = "bnimp.RDA")
+#save(bn.imp, file = "bnimp.RDA")
 
 #### Begin with second BNRC imputation :
 
+#First retrieve reliability:
+dat <- mi.multiple.imp$MCAR[[1]]
 
+# prepare
+rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
+reliability <- rel_label$pct_miss
+names(reliability) <- rel_label$variable
+reliability <- sort(reliability[reliability > 0])
 structure.test <- mi.structure$MCAR[[1]]$dag
-bnlearn::mb(structure.test,cond.vector[1])
+bn.test <- bn$MCAR[[1]]
+
+# retrieve vector of means for reliability variables:
+imp.mean <- setNames(lapply(dat[,names(reliability)], mean_or_mode), nm=names(reliability))
+# start chain
+mb <- setNames(lapply(1:length(reliability), function(k) bnlearn::mb(structure.test,names(reliability[k]))), nm=names(reliability))
+
+##begin with the first variable always cycle through here
+for (i in 1:length(reliability)){
+dat_mi <- as.data.frame(dat[is.na(dat[,names(reliability[i])]),mb[[i]]])
+colnames(dat_mi) <- mb[[i]]
+if (sum(is.na(dat_mi)) > 0){
+  for (m in 1:ncol(dat_mi)){  
+    dat_mi[is.na(dat_mi[,mb[[i]][m]]),mb[[i]][m]] <- imp.mean[[mb[[i]][m]]]
+  }
+}
+listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
+              setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=names(dat_mi))
+test <- lapply(1:nrow(dat_mi), function(r) 
+          bnlearn::cpdist(bn.test, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw"))
+
+testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]]), 1))
+dat_mi[names(reliability)[i]] <- testsample
+dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
+}
+#gg_miss_var(dat, show_pct = TRUE)
+
+### begin first iteration after initiation:
+
+dat.first <- dat
+count <- 1
+cnt.break <- 4
+system.time(
+repeat {
+  if (count>cnt.break){
+    break
+  }
+  for (i in 1:length(reliability)){
+  dat[,names(reliability)[i]] <- mi.multiple.imp$MCAR[[1]][,names(reliability)[i]] 
+    dat_mi <- as.data.frame(dat[is.na(dat[,names(reliability[i])]),mb[[i]]])
+    colnames(dat_mi) <- mb[[i]]
+    listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
+      setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=names(dat_mi))
+    test <- lapply(1:nrow(dat_mi), function(r) 
+      bnlearn::cpdist(bn.test, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw"))
+    testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]]), 1))
+    dat_mi[names(reliability)[i]] <- testsample
+    dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
+  }
+  count <- count + 1
+}
+)
+
+#### Algorithm done
 
 # Bayesian Network Reliability Chain (BNRC) algorithm:
 # Given Structure G_t retrieve Markov blanket of node X_t that is the most reliable, meaning where there is the lowest missing 
