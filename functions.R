@@ -275,6 +275,74 @@ bn.parents.imp <- function(bn=bn, dat=dat, seed = NULL){
 ############################################################################################################ 
 ############################################################################################################ 
 
+bnrc.imp <- function(bn=bn, dat=dat, cnt.break = cnt.break, returnfull = TRUE, seed = NULL){
+  set.seed(seed)
+  # prepare
+  rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
+  reliability <- rel_label$pct_miss
+  names(reliability) <- rel_label$variable
+  reliability <- sort(reliability[reliability > 0])
+  
+  # retrieve vector of means for reliability variables:
+  imp.mean <- setNames(lapply(dat[,names(reliability)], mean_or_mode), nm=names(reliability))
+  # start chain
+  mb <- setNames(lapply(1:length(reliability), function(k) bnlearn::mb(bn,names(reliability[k]))), nm=names(reliability))
+  
+  ##begin with the first variable always cycle through here
+  for (i in 1:length(reliability)){
+    dat_mi <- as.data.frame(dat[is.na(dat[,names(reliability[i])]),mb[[i]]])
+    colnames(dat_mi) <- mb[[i]]
+    if (sum(is.na(dat_mi)) > 0){
+      for (m in 1:ncol(dat_mi)){  
+        dat_mi[is.na(dat_mi[,mb[[i]][m]]),mb[[i]][m]] <- imp.mean[[mb[[i]][m]]]
+      }
+    }
+    listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
+      setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=names(dat_mi))
+    test <- mclapply(mc.cores = numCores, 1:nrow(dat_mi), function(r) 
+      bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw"))
+    
+    testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]]), 1))
+    dat_mi[names(reliability)[i]] <- testsample
+    dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
+  }
+  ### begin first iteration after initiation:
+  dat.store <- list()
+  dat.store[[1]] <- dat
+  count <- 1
+  cnt.break <- cnt.break
+  repeat {
+    if (count>cnt.break){
+      break
+    }
+    for (i in 1:length(reliability)){
+      dat[,names(reliability)[i]] <- mi.multiple.imp$MCAR[[1]][,names(reliability)[i]] 
+      dat_mi <- as.data.frame(dat[is.na(dat[,names(reliability[i])]),mb[[i]]])
+      colnames(dat_mi) <- mb[[i]]
+      listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
+        setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=1:nrow(dat_mi))
+      test <- mclapply(mc.cores = numCores,1:nrow(dat_mi), function(r) 
+        tryCatch({
+          bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
+        }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
+      if (sum(sapply(test, is.null))>0){
+        test.null <- which(sapply(test, is.null))
+        test[[test.null]] <- dat.store[[count]][is.na(dat[,names(reliability[i])]),names(reliability[i])][test.null] 
+      }
+      testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]]), 1))
+      dat_mi[names(reliability)[i]] <- testsample
+      dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
+    }
+    count <- count + 1
+    dat.store[[count]] <- dat
+  }
+  if (returnfull == FALSE){
+    return(dat)
+  } else if (returnfull == T) {
+    datalist <- list("finalData" = dat, "DataHistory" = dat.store)
+    return(datalist)
+  }
+}
 
 
 
