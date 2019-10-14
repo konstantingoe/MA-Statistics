@@ -274,6 +274,7 @@ bn.parents.imp <- function(bn=bn, dat=dat, seed = NULL){
 
 ############################################################################################################ 
 ############################################################################################################ 
+# BN Reliability Chain imputation:
 
 bnrc.imp <- function(bn=bn, dat=dat, cnt.break = cnt.break, returnfull = TRUE, seed = NULL){
   set.seed(seed)

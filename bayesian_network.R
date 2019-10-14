@@ -266,7 +266,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 
 
-k <- 100
+k <- 5
 set.seed(1234)
 numCores <- detectCores() -1
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
@@ -321,9 +321,10 @@ bn.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
 
 #save(bn.imp, file = "bnimp.RDA")
 
-#### Begin with second BNRC imputation :
+bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  lapply(1:k, function(l) bnrc.imp(bn=bn[[m]][[l]], 
+                                           dat=mi.multiple.imp[[m]][[l]], cnt.break = 5, returnfull = F))), nm = miss.mech.vec)
 
-try <- bnrc.imp(bn=bn$MCAR[[1]], dat=mi.multiple.imp$MCAR[[1]], cnt.break = 10)
 
 #### Algorithm done
 
@@ -401,17 +402,42 @@ pred["consumer_debt_filter", c(indepvars.residence, "lnresidence", "lnestate")] 
 pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
 pred["lnbuilding", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
 
+#### specify possible range for logical constraints
+post <- make.post(mi.multiple.imp[[1]][[1]])
+
+post["lnresidence"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], owner==1)$lnresidence, na.rm=T), Inf))"
+post["lnestate"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], other_estate==1)$lnestate, na.rm=T), Inf))"
+post["lnassets"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], assets_filter==1)$lnassets, na.rm=T), Inf))"
+post["lnbuilding"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], building_contract_filter==1)$lnbuilding, na.rm=T), Inf))"
+post["lnlife"]           <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], life_insure_filter==1)$lnlife, na.rm=T), Inf))"
+post["lnbusiness"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], business_holdings_filter==1)$lnbusiness, na.rm=T), Inf))"
+post["lnvehicles"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], vehicles_filter==1)$lnvehicles, na.rm=T), Inf))"
+post["lntangibles"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], tangibles_filter==1)$lntangibles, na.rm=T), Inf))"
+post["lnresidence_debt"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], residence_debt_filter==1)$lnresidence_debt, na.rm=T), Inf))"
+post["lnestate_debt"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], other_estate_debt_filter==1)$lnestate_debt, na.rm=T), Inf))"
+post["lnconsumer_debt"]  <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], consumer_debt_filter==1)$lnconsumer_debt, na.rm=T), Inf))"
+post["lnstudent_debt"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], education_debt_filter==1)$lnstudent_debt, na.rm=T), Inf))"
+
+post["lnjobduration"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], employed==1)$lnjobduration, na.rm=T), Inf))"
+post["lnworkinghours"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], employed==1)$lnworkinghours, na.rm=T), Inf))"
+post["lnwage_gross"]     <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], employed==1)$lnwage_gross, na.rm=T), Inf))"
+post["lnwage_net"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], employed==1)$lnwage_net, na.rm=T), Inf))"
+post["lnsaving"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], saving==1)$lnsaving, na.rm=T), Inf))"
+post["lninheritance"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], inherit_filter==1)$lninheritance, na.rm=T), Inf))"
+
+post["superior"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]]$superior)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]]$superior)[3])))"
+post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]]$compsize)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]]$compsize)[8])))"
+
 
 mice.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-              mclapply(1:k, function(l) mice(mi.multiple.imp[[m]][[l]], maxit = 15, predictorMatrix = pred ,print=F, m=1), mc.cores = numCores),
+              mclapply(1:k, function(l) mice(mi.multiple.imp[[m]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1), mc.cores = numCores),
                 mc.cores = numCores), nm = miss.mech.vec)
 
 mice.imp.complete <- setNames(mclapply(1:length(miss.mech.vec), function(m)
                       lapply(1:k, function(l) mice::complete(mice.imp[[m]][[l]],action="long")),mc.cores = numCores), nm = miss.mech.vec)
 
 
-
-save(mice.imp, file = "mice.RDA")
+#save(mice.imp, file = "mice.RDA")
 
 #### trying to solve the nearest neighbor problem... post processing?
 #Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
@@ -433,6 +459,19 @@ for (m in 1:length(miss.mech.vec)){
   colnames(lvl1.bn[[m]]) <- continuous.imp.vars
 }
 
+lvl1.bnrc <- setNames(mclapply(1:length(miss.mech.vec), function(m)
+  sapply(1:k,
+         function(l) sapply(1:length(continuous.imp.vars),
+                            function(i) 
+                              ks.test(bnrc[[m]][[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic)),
+                                mc.cores = numCores), nm = miss.mech.vec)
+lvl1.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  as.data.frame(t(lvl1.bnrc[[m]]))), nm = miss.mech.vec)
+for (m in 1:length(miss.mech.vec)){ 
+  colnames(lvl1.bnrc[[m]]) <- continuous.imp.vars
+}
+
+
 lvl1.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
               sapply(1:k,
                 function(l) 
@@ -448,6 +487,12 @@ for (m in 1:length(miss.mech.vec)){
 
 setNames(lapply(1:length(miss.mech.vec), function(m) 
   sapply(lvl1.bn[[m]], mean, na.omit =T) < sapply(lvl1.mice[[m]], mean, na.omit =T)), nm = miss.mech.vec)
+
+setNames(lapply(1:length(miss.mech.vec), function(m) 
+  sapply(lvl1.bnrc[[m]], mean, na.omit =T) < sapply(lvl1.bn[[m]], mean, na.omit =T)), nm = miss.mech.vec)
+
+setNames(lapply(1:length(miss.mech.vec), function(m) 
+  sapply(lvl1.bnrc[[m]], mean, na.omit =T) < sapply(lvl1.mice[[m]], mean, na.omit =T)), nm = miss.mech.vec)
 
 #### Latex table representation: 
 
@@ -502,12 +547,18 @@ lvl2.bn <- setNames(mclapply(1:length(miss.mech.vec), function(m)
               bd.test(bn.imp[[m]][[l]][,continuous.imp.vars],truth[,continuous.imp.vars])$statistic),
                mc.cores = numCores), nm = miss.mech.vec)
 
+lvl2.bnrc <- setNames(mclapply(1:length(miss.mech.vec), function(m)
+              sapply(1:k, function(l) 
+                bd.test(bnrc[[m]][[l]][,continuous.imp.vars],truth[,continuous.imp.vars])$statistic),
+                  mc.cores = numCores), nm = miss.mech.vec)
+
 lvl2.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
               sapply(1:k, function(l) 
                 bd.test(mice.imp.complete[[m]][[l]][,continuous.imp.vars],truth[,continuous.imp.vars])$statistic),
                  mc.cores = numCores), nm = miss.mech.vec)
 
 lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bn[[m]])<mean(lvl2.mice[[m]]))
+lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bnrc[[m]])<mean(lvl2.bn[[m]]))
 
 ##### 1st. Levels of Statistical Consistency: discrete vars ####
 
@@ -525,6 +576,21 @@ lvl1.discrete.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
 for (m in 1:length(miss.mech.vec)){ 
   colnames(lvl1.discrete.bn[[m]]) <- discrete.imp.vars
 }
+
+lvl1.discrete.bnrc <- setNames(mclapply(1:length(miss.mech.vec), function(m)
+                        sapply(1:k,
+                          function(l) sapply(1:length(discrete.imp.vars),
+                            function(i) 1-sum(diag(table(bnrc[[m]][[l]][,discrete.imp.vars[i]],
+                              truth[,discrete.imp.vars[i]])))/sum(table(bnrc[[m]][[l]][,discrete.imp.vars[i]],
+                                truth[,discrete.imp.vars[i]])))),
+                                  mc.cores = numCores), nm = miss.mech.vec)
+lvl1.discrete.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
+                     as.data.frame(t(lvl1.discrete.bnrc[[m]]))), nm = miss.mech.vec)
+
+for (m in 1:length(miss.mech.vec)){ 
+  colnames(lvl1.discrete.bnrc[[m]]) <- discrete.imp.vars
+}
+
 
 lvl1.discrete.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
                         sapply(1:k,
@@ -587,6 +653,13 @@ lvl2.discrete.bn <- setNames(mclapply(1:length(miss.mech.vec), function(m)
                             one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
                               one_of(continuous.imp.vars, discrete.imp.vars)))$statistic),
                                 mc.cores = numCores), nm = miss.mech.vec)
+
+lvl2.discrete.bnrc <- setNames(mclapply(1:length(miss.mech.vec), function(m)
+                        sapply(1:k, function(l) bd.test(x = select(bnrc[[m]][[l]], 
+                          one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
+                            one_of(continuous.imp.vars, discrete.imp.vars)))$statistic),
+                              mc.cores = numCores), nm = miss.mech.vec)
+
 
 lvl2.discrete.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
                         sapply(1:k, function(l) bd.test(x = select(mice.imp.complete[[m]][[l]], 
@@ -661,6 +734,7 @@ setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.bn[[m]])
 
 setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.bn[[m]])), nm = miss.mech.vec)
 setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.mice[[m]])), nm = miss.mech.vec)
+setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.bnrc[[m]])), nm = miss.mech.vec)
 
 
 ### Make table for presentation:
