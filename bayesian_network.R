@@ -272,22 +272,28 @@ numCores <- detectCores() -1
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
+miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 
 mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
-  lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=.1, cond = cond.vector))), nm=names(miss.mechanism))
+                      setNames(lapply(seq_along(miss.prob), function(p) 
+                        lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
+
 mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
-  lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = .1, cond = cond.vector, x.vars = x.vars))), nm=names(miss.mechanism2)))
+                    setNames(lapply(seq_along(miss.prob), function(p) 
+                      lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
 
 for (m in 1:length(miss.mech.vec)){
-  for (l in 1:k) { 
-    for (i in 1:length(lnrecode.vars)){
-      mi.multiple.imp[[m]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[l]][,lnrecode.vars[i]] == -99, 
-                                                   -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
-                                                   mi.multiple.imp[[m]][[l]][,lnrecode.vars[i]])
-    }
-    mi.multiple.imp[[m]][[l]] <- select(mi.multiple.imp[[m]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
-  } 
-}
+  for (p in 1:length(miss.prob)){
+    for (l in 1:k) { 
+      for (i in 1:length(lnrecode.vars)){
+        mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99, 
+                                                     -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
+                                                     mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
+      }
+      mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+    } 
+  }
+}  
   
 #mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
 #                                fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
@@ -296,34 +302,47 @@ for (m in 1:length(miss.mech.vec)){
 
 #mi.multiple.imp[[6]][,discrete.imp.vars] <- NULL 
 mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                    mclapply(1:k, function(l) structural.em(mi.multiple.imp[[m]][[l]][,names(mi.multiple.imp[[m]][[l]]) != "pid"], maximize = "hc",
+                  setNames(lapply(seq_along(miss.prob), function(p) 
+                    mclapply(1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T),
-                            mc.cores = numCores)), nm = miss.mech.vec)
+                            mc.cores = numCores)), nm= names(miss.prob))), nm = miss.mech.vec)
 
 #save(mi.structure, file = "structure.RDA")
-lapply(1:length(miss.mech.vec), function(m) sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[l]]$dag))))
+lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
+  sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
 
+mi.structure.rev <- mi.structure
 for (m in 1:length(miss.mech.vec)){
-  for (l in 1:k){
-    rel_label <- miss_var_summary(mi.multiple.imp[[m]][[l]][,names(mi.multiple.imp[[m]][[l]]) != "pid"], order = T)
-    reliability <- rel_label$pct_miss
-    names(reliability) <- rel_label$variable
-    arc.reversal(object = mi.structure[[m]][[l]]$dag)
+  for (p in 1:length(miss.prob)){
+    for (l in 1:k){
+      rel_label <- miss_var_summary(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], order = T)
+      reliability <- rel_label$pct_miss
+      names(reliability) <- rel_label$variable
+      arc.reversal(object = mi.structure.rev[[m]][[p]][[l]]$dag)
+    }
   }
-}
+}  
 
 bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
-        lapply(1:k, function(l) bn.fit(mi.structure[[m]][[l]]$dag, mi.structure[[m]][[l]]$imputed, method = "mle"))), nm = miss.mech.vec)
+        setNames(lapply(seq_along(miss.prob), function(p) 
+          lapply(1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
+           nm= names(miss.prob))), nm = miss.mech.vec)
 
 bn.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-            mclapply(1:k, function(l) bn.parents.imp(bn=bn[[m]][[l]], 
-                         dat=mi.multiple.imp[[m]][[l]]), mc.cores = numCores), mc.cores = numCores), nm = miss.mech.vec)
+            setNames(lapply(seq_along(miss.prob), function(p) 
+              mclapply(1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+                dat=mi.multiple.imp[[m]][[p]][[l]]), mc.cores = numCores), mc.cores = numCores), 
+                  nm= names(miss.prob))), nm = miss.mech.vec)
+
+
 
 #save(bn.imp, file = "bnimp.RDA")
 
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
-  lapply(1:k, function(l) bnrc.imp(bn=bn[[m]][[l]], 
-                                           dat=mi.multiple.imp[[m]][[l]], cnt.break = 5, returnfull = F))), nm = miss.mech.vec)
+          setNames(lapply(seq_along(miss.prob), function(p) 
+            lapply(1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
+              dat=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
+                nm= names(miss.prob))), nm = miss.mech.vec)
 
 
 #### Algorithm done
@@ -447,43 +466,12 @@ mice.imp.complete <- setNames(mclapply(1:length(miss.mech.vec), function(m)
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
 
 continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
-lvl1.bn <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-              sapply(1:k,
-                  function(l) sapply(1:length(continuous.imp.vars),
-                      function(i) 
-                        ks.test(bn.imp[[m]][[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic)),
-                          mc.cores = numCores), nm = miss.mech.vec)
-lvl1.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
-              as.data.frame(t(lvl1.bn[[m]]))), nm = miss.mech.vec)
-for (m in 1:length(miss.mech.vec)){ 
-  colnames(lvl1.bn[[m]]) <- continuous.imp.vars
-}
 
-lvl1.bnrc <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-  sapply(1:k,
-         function(l) sapply(1:length(continuous.imp.vars),
-                            function(i) 
-                              ks.test(bnrc[[m]][[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic)),
-                                mc.cores = numCores), nm = miss.mech.vec)
-lvl1.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
-  as.data.frame(t(lvl1.bnrc[[m]]))), nm = miss.mech.vec)
-for (m in 1:length(miss.mech.vec)){ 
-  colnames(lvl1.bnrc[[m]]) <- continuous.imp.vars
-}
+lvl1.bn <- ks.list(data = bn.imp)
 
+lvl1.bnrc <- ks.list(data = bnrc)
 
-lvl1.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-              sapply(1:k,
-                function(l) 
-                  sapply(1:length(continuous.imp.vars), function(i) 
-                    ks.test(mice.imp.complete[[m]][[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic)),
-                      mc.cores = numCores), nm = miss.mech.vec)
-
-lvl1.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
-              as.data.frame(t(lvl1.mice[[m]]))), nm = miss.mech.vec)
-for (m in 1:length(miss.mech.vec)){ 
-  colnames(lvl1.mice[[m]]) <- continuous.imp.vars
-}
+lvl1.mice <- ks.list(data = mice.imp.complete)
 
 setNames(lapply(1:length(miss.mech.vec), function(m) 
   sapply(lvl1.bn[[m]], mean, na.omit =T) < sapply(lvl1.mice[[m]], mean, na.omit =T)), nm = miss.mech.vec)
@@ -496,7 +484,7 @@ setNames(lapply(1:length(miss.mech.vec), function(m)
 
 #### Latex table representation: 
 
-table.imp <- list("BN" = lvl1.bn, "MICE" = lvl1.mice)
+table.imp <- list("BN" = lvl1.bn, "BNRC" = lvl1.bnrc, "MICE" = lvl1.mice)
 
 level1.table <-   sapply(seq_along(table.imp), function(i)
                         sapply(table.imp[[i]][[1]], mean, na.omit =T))
@@ -542,73 +530,25 @@ stargazer(output2, digits = 4, title = "Comparison of BNimp and MICE recovering 
 
 ##### 2nd. Levels of Statistical Consistency: continuous vars####
 
-lvl2.bn <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-            sapply(1:k, function(l) 
-              bd.test(bn.imp[[m]][[l]][,continuous.imp.vars],truth[,continuous.imp.vars])$statistic),
-               mc.cores = numCores), nm = miss.mech.vec)
+# potentially leave out... will do the same with more covariates later:
+#lvl2.cont.bn <- bd.cont(data = bn.imp)
+#lvl2.cont.bnrc <- bd.cont(data = bnrc)
+#lvl2.cont.mice <- bd.cont(data = mice.imp.complete)
 
-lvl2.bnrc <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-              sapply(1:k, function(l) 
-                bd.test(bnrc[[m]][[l]][,continuous.imp.vars],truth[,continuous.imp.vars])$statistic),
-                  mc.cores = numCores), nm = miss.mech.vec)
-
-lvl2.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-              sapply(1:k, function(l) 
-                bd.test(mice.imp.complete[[m]][[l]][,continuous.imp.vars],truth[,continuous.imp.vars])$statistic),
-                 mc.cores = numCores), nm = miss.mech.vec)
-
-lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bn[[m]])<mean(lvl2.mice[[m]]))
-lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bnrc[[m]])<mean(lvl2.bn[[m]]))
+#lapply(1:length(miss.mech.vec), function(m) mean(lvl2.cont.bn[[m]])<mean(lvl2.cont.mice[[m]]))
+#lapply(1:length(miss.mech.vec), function(m) mean(lvl2.cont.bnrc[[m]])<mean(lvl2.cont.bn[[m]]))
 
 ##### 1st. Levels of Statistical Consistency: discrete vars ####
 
 discrete.imp.vars <- c("trainingF", "trainingM", "schoolingF", "schoolingM", "education", "superior", "compsize")
-lvl1.discrete.bn <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                      sapply(1:k,
-                       function(l) sapply(1:length(discrete.imp.vars),
-                        function(i) 1-sum(diag(table(bn.imp[[m]][[l]][,discrete.imp.vars[i]],
-                          truth[,discrete.imp.vars[i]])))/sum(table(bn.imp[[m]][[l]][,discrete.imp.vars[i]],
-                           truth[,discrete.imp.vars[i]])))),
-                            mc.cores = numCores), nm = miss.mech.vec)
-lvl1.discrete.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                      as.data.frame(t(lvl1.discrete.bn[[m]]))), nm = miss.mech.vec)
 
-for (m in 1:length(miss.mech.vec)){ 
-  colnames(lvl1.discrete.bn[[m]]) <- discrete.imp.vars
-}
-
-lvl1.discrete.bnrc <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                        sapply(1:k,
-                          function(l) sapply(1:length(discrete.imp.vars),
-                            function(i) 1-sum(diag(table(bnrc[[m]][[l]][,discrete.imp.vars[i]],
-                              truth[,discrete.imp.vars[i]])))/sum(table(bnrc[[m]][[l]][,discrete.imp.vars[i]],
-                                truth[,discrete.imp.vars[i]])))),
-                                  mc.cores = numCores), nm = miss.mech.vec)
-lvl1.discrete.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                     as.data.frame(t(lvl1.discrete.bnrc[[m]]))), nm = miss.mech.vec)
-
-for (m in 1:length(miss.mech.vec)){ 
-  colnames(lvl1.discrete.bnrc[[m]]) <- discrete.imp.vars
-}
-
-
-lvl1.discrete.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                        sapply(1:k,
-                          function(l) sapply(1:length(discrete.imp.vars),
-                            function(i) 1-sum(diag(table(mice.imp.complete[[m]][[l]][,discrete.imp.vars[i]],
-                              truth[,discrete.imp.vars[i]])))/sum(table(mice.imp.complete[[m]][[l]][,discrete.imp.vars[i]],
-                                truth[,discrete.imp.vars[i]])))),
-                                  mc.cores = numCores), nm = miss.mech.vec)
-
-lvl1.discrete.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                        as.data.frame(t(lvl1.discrete.mice[[m]]))), nm = miss.mech.vec)
-for (m in 1:length(miss.mech.vec)){ 
-  colnames(lvl1.discrete.mice[[m]]) <- discrete.imp.vars
-}
+lvl1.discrete.bn <- misclass.error(data = bn.imp)
+lvl1.discrete.bnrc <- misclass.error(data = bnrc)
+lvl1.discrete.mice <- misclass.error(data = mice.imp.complete)
 
 #### Latex Tables 1. level discrete vars
 
-table.disc.imp <- list("BN" = lvl1.discrete.bn, "MICE" = lvl1.discrete.mice)
+table.disc.imp <- list("BN" = lvl1.discrete.bn, "BNRC" = lvl1.discrete.bnrc, "MICE" = lvl1.discrete.mice)
 
 level1.disc.table <-   sapply(seq_along(table.disc.imp), function(i)
   sapply(table.disc.imp[[i]][[1]], mean, na.omit =T))
@@ -648,62 +588,61 @@ stargazer(output, digits = 4, title = "Comparison of BNimp and MICE recovering t
 
 ##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
 
-lvl2.discrete.bn <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                        sapply(1:k, function(l) bd.test(x = select(bn.imp[[m]][[l]], 
-                            one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
-                              one_of(continuous.imp.vars, discrete.imp.vars)))$statistic),
-                                mc.cores = numCores), nm = miss.mech.vec)
-
-lvl2.discrete.bnrc <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                        sapply(1:k, function(l) bd.test(x = select(bnrc[[m]][[l]], 
-                          one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
-                            one_of(continuous.imp.vars, discrete.imp.vars)))$statistic),
-                              mc.cores = numCores), nm = miss.mech.vec)
-
-
-lvl2.discrete.mice <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                        sapply(1:k, function(l) bd.test(x = select(mice.imp.complete[[m]][[l]], 
-                            one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
-                              one_of(continuous.imp.vars, discrete.imp.vars)))$statistic),
-                                 mc.cores = numCores), nm = miss.mech.vec)
-
+lvl2.bn <- bd.full(data=bn.imp)
+lvl2.bnrc <- bd.full(data=bnrc)
+lvl2.mice <- bd.full(data=mice.imp.complete)
 
 #### plotting mean over repetitions:
 
-reps <- 1:100
+reps <- 1:k
 bn.mean <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+bnrc.mean <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
 mice.mean <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
 bn.sdup <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
 bn.sdlow <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+bnrc.sdup <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+bnrc.sdlow <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
 mice.sdup <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
 mice.sdlow <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
+
 for (m in 1:3){
   for (i in 1:k){
-      bn.mean[[m]][i] <- mean(lvl2.discrete.bn[[m]][1:i])
-      bn.sdup[[m]][i] <- mean(lvl2.discrete.bn[[m]][1:i]) + sd(lvl2.discrete.bn[[m]][1:i])
-      bn.sdlow[[m]][i] <- mean(lvl2.discrete.bn[[m]][1:i]) - sd(lvl2.discrete.bn[[m]][1:i])
+      bn.mean[[m]][i] <- mean(lvl2.bn[[m]][1:i])
+      bn.sdup[[m]][i] <- mean(lvl2.bn[[m]][1:i]) + sd(lvl2.bn[[m]][1:i])
+      bn.sdlow[[m]][i] <- mean(lvl2.bn[[m]][1:i]) - sd(lvl2.bn[[m]][1:i])
       
-      mice.mean[[m]][i] <- mean(lvl2.discrete.mice[[m]][1:i])
-      mice.sdup[[m]][i] <- mean(lvl2.discrete.mice[[m]][1:i]) + sd(lvl2.discrete.mice[[m]][1:i])
-      mice.sdlow[[m]][i] <- mean(lvl2.discrete.mice[[m]][1:i]) - sd(lvl2.discrete.mice[[m]][1:i])
+      bnrc.mean[[m]][i] <- mean(lvl2.bnrc[[m]][1:i])
+      bnrc.sdup[[m]][i] <- mean(lvl2.bnrc[[m]][1:i]) + sd(lvl2.bnrc[[m]][1:i])
+      bnrc.sdlow[[m]][i] <- mean(lvl2.bnrc[[m]][1:i]) - sd(lvl2.bnrc[[m]][1:i])
+      
+      mice.mean[[m]][i] <- mean(lvl2.mice[[m]][1:i])
+      mice.sdup[[m]][i] <- mean(lvl2.mice[[m]][1:i]) + sd(lvl2.mice[[m]][1:i])
+      mice.sdlow[[m]][i] <- mean(lvl2.mice[[m]][1:i]) - sd(lvl2.mice[[m]][1:i])
   }
 }
 
 plotdata <- as.data.frame(cbind(reps,bn.mean[[1]], bn.sdup[[1]], bn.sdlow[[1]],
-                                mice.mean[[1]], mice.sdup[[1]], mice.sdlow[[1]],
-                                bn.mean[[2]], bn.sdup[[2]], bn.sdlow[[2]],
-                                mice.mean[[2]], mice.sdup[[2]], mice.sdlow[[2]],
-                                bn.mean[[3]], bn.sdup[[3]], bn.sdlow[[3]],
-                                mice.mean[[3]], mice.sdup[[3]], mice.sdlow[[3]]))
+                                     bnrc.mean[[1]], bnrc.sdup[[1]], bnrc.sdlow[[1]],
+                                     mice.mean[[1]], mice.sdup[[1]], mice.sdlow[[1]],
+                                     bn.mean[[2]], bn.sdup[[2]], bn.sdlow[[2]],
+                                     bnrc.mean[[2]], bnrc.sdup[[2]], bnrc.sdlow[[2]],
+                                     mice.mean[[2]], mice.sdup[[2]], mice.sdlow[[2]],
+                                     bn.mean[[3]], bn.sdup[[3]], bn.sdlow[[3]],
+                                     bnrc.mean[[3]], bnrc.sdup[[3]], bnrc.sdlow[[3]],
+                                     mice.mean[[3]], mice.sdup[[3]], mice.sdlow[[3]]))
 colnames(plotdata) <-  c("Repetition", "bnMCAR", "bnsdupMCAR", "bnsdlowMCAR",
+                         "bnrcMCAR", "bnrcsdupMCAR", "bnrcsdlowMCAR",
                          "miceMCAR", "micesdupMCAR", "micesdlowMCAR",
                          "bnMNAR", "bnsdupMNAR", "bnsdlowMNAR",
+                         "bnrcMAR", "bnrcsdupMAR", "bnrcsdlowMAR",
                          "miceMNAR", "micesdupMNAR", "micesdlowMNAR",
                          "bnMAR", "bnsdupMAR", "bnsdlowMAR",
+                         "bnrcMNAR", "bnrcsdupMNAR", "bnrcsdlowMNAR",
                          "miceMAR", "micesdupMAR", "micesdlowMAR")
 
 plot1 <- ggplot() +
   geom_line(data = plotdata, aes(Repetition,bnMCAR,color="BNimp MCAR")) +
+  geom_line(data = plotdata, aes(Repetition,bnrcMCAR,color="BNRC MCAR")) +
   geom_line(data = plotdata, aes(Repetition,miceMCAR,color="MICE MCAR")) +
   labs(color="Imputation scheme") +
   ylab("Ball divergence") +
@@ -713,6 +652,7 @@ ggsave("mcarplot.pdf")
 
 plot2 <- ggplot() +
   geom_line(data = plotdata, aes(Repetition,bnMNAR,color="BNimp MNAR")) +
+  geom_line(data = plotdata, aes(Repetition,bnrcMCAR,color="BNRC MNAR")) +
   geom_line(data = plotdata, aes(Repetition,miceMNAR,color="MICE MNAR")) +
   labs(color="Imputation schemes") +
   ylab("Ball divergence") +
@@ -722,6 +662,7 @@ ggsave("mnarplot.pdf")
 
 plot3 <- ggplot() +
   geom_line(data = plotdata, aes(Repetition,bnMAR,color="BNimp MAR")) +
+  geom_line(data = plotdata, aes(Repetition,bnrcMCAR,color="BNRC MAR")) +
   geom_line(data = plotdata, aes(Repetition,miceMAR,color="MICE MAR")) +
   labs(color="Imputation schemes") +
   ylab("Ball divergence") +
@@ -730,11 +671,12 @@ plot3 <- ggplot() +
 ggsave("marplot.pdf")
 
 
-setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.bn[[m]]) < mean(lvl2.discrete.mice[[m]])), nm = miss.mech.vec)
+setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bn[[m]]) < mean(lvl2.mice[[m]])), nm = miss.mech.vec)
+setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bnrc[[m]]) < mean(lvl2.mice[[m]])), nm = miss.mech.vec)
 
-setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.bn[[m]])), nm = miss.mech.vec)
-setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.mice[[m]])), nm = miss.mech.vec)
-setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.discrete.bnrc[[m]])), nm = miss.mech.vec)
+setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bn[[m]])), nm = miss.mech.vec)
+setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.mice[[m]])), nm = miss.mech.vec)
+setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bnrc[[m]])), nm = miss.mech.vec)
 
 
 ### Make table for presentation:

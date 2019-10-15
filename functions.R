@@ -1,5 +1,17 @@
 ##### Functions #####
 
+### function for Monte Carlo results:
+
+mc.se <- function(x,k=k){
+  ave_est <-  mean(x)
+  emp_sd <-  sd(x)
+  bias_mcse <- emp_sd / sqrt(k)
+  std_bias <-  ave_est / emp_sd
+  return(c(bias_mcse,std_bias))
+}
+
+
+
 normalize.log <- function(x){
   if (any(x == 0, na.rm=T) == TRUE){
     cat("Warning: Zero values are recoded to 1")
@@ -223,7 +235,7 @@ arc.reversal2 <- function(object = object){
 
 #### BN-imputation by parents function ####
 
-bn.parents.imp <- function(bn=bn, dat=dat, seed = NULL){
+bn.parents.imp <- function(bn=bn, dag=dag, dat=dat, seed = NULL){
   set.seed(seed)
   rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
   reliability <- rel_label$pct_miss
@@ -231,7 +243,7 @@ bn.parents.imp <- function(bn=bn, dat=dat, seed = NULL){
   imp.reliability <- sort(reliability[reliability>0], decreasing = F)
   
   for (k in 1:length(imp.reliability)){
-    parents <- bnlearn::parents(bn, names(imp.reliability)[k])
+    parents <- bnlearn::parents(dag, names(imp.reliability)[k])
     if (length(parents) == 0){
       data <- dat[is.na(dat[,names(imp.reliability[k])]),]
       test <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
@@ -345,15 +357,63 @@ bnrc.imp <- function(bn=bn, dat=dat, cnt.break = cnt.break, returnfull = TRUE, s
   }
 }
 
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
+##### Processing functions post simulation #####
 
+ks.list <- function(data=data){
+            results <- setNames(mclapply(1:length(miss.mech.vec), function(m)
+                        sapply(1:k,
+                          function(l) sapply(1:length(continuous.imp.vars),
+                           function(i) 
+                            ks.test(data[[m]][[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic)),
+                             mc.cores = numCores), nm = miss.mech.vec)
+            results <- setNames(lapply(1:length(miss.mech.vec), function(m)
+                        as.data.frame(t(results[[m]]))), nm = miss.mech.vec)
+            for (m in 1:length(miss.mech.vec)){ 
+              colnames(results[[m]]) <- continuous.imp.vars
+            }
+            return(results)
+}     
 
+misclass.error <- function(data=data){
+  results <- setNames(mclapply(1:length(miss.mech.vec), function(m)
+                        sapply(1:k,
+                          function(l) sapply(1:length(discrete.imp.vars),
+                            function(i) 1-sum(diag(table(data[[m]][[l]][,discrete.imp.vars[i]],
+                              truth[,discrete.imp.vars[i]])))/sum(table(bn.imp[[m]][[l]][,discrete.imp.vars[i]],
+                                truth[,discrete.imp.vars[i]])))),
+                                  mc.cores = numCores), nm = miss.mech.vec)
+  results <- setNames(lapply(1:length(miss.mech.vec), function(m)
+              as.data.frame(t(results[[m]]))), nm = miss.mech.vec)
+  
+  for (m in 1:length(miss.mech.vec)){ 
+    colnames(results[[m]]) <- discrete.imp.vars
+  }
+  return(results)
+}
 
+####2nd level for continuous variables:
+bd.full <- function(data=data){
+  results <- setNames(mclapply(1:length(miss.mech.vec), function(m)
+              sapply(1:k, function(l) bd.test(x = select(data[[m]][[l]], 
+                one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
+                  one_of(continuous.imp.vars, discrete.imp.vars)))$statistic),
+                    mc.cores = numCores), nm = miss.mech.vec)
+  return(results)
+}
 
-
-
-
-
-
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
+                                    ##### Testing #####
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------#
 
 cos.F<-function(x,j){sqrt(2)*cos((j)*pi*x)}
 k.fct <- function(u){as.numeric(abs(u)<=1)*(1-u^2)*3/4}
