@@ -329,7 +329,7 @@ bnrc.imp <- function(bn=bn, dat=dat, cnt.break = cnt.break, returnfull = TRUE, s
       break
     }
     for (i in 1:length(reliability)){
-      dat[,names(reliability)[i]] <- mi.multiple.imp$MCAR[[1]][,names(reliability)[i]] 
+      dat[,names(reliability)[i]] <- mi.multiple.imp$MCAR[[1]][[1]][,names(reliability)[i]] 
       dat_mi <- as.data.frame(dat[is.na(dat[,names(reliability[i])]),mb[[i]]])
       colnames(dat_mi) <- mb[[i]]
       listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
@@ -364,46 +364,71 @@ bnrc.imp <- function(bn=bn, dat=dat, cnt.break = cnt.break, returnfull = TRUE, s
 ##### Processing functions post simulation #####
 
 ks.list <- function(data=data){
-            results <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                        sapply(1:k,
-                          function(l) sapply(1:length(continuous.imp.vars),
-                           function(i) 
-                            ks.test(data[[m]][[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic)),
-                             mc.cores = numCores), nm = miss.mech.vec)
+            results <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.vec), function(m)
+                          setNames(lapply(seq_along(miss.prob), function(p) 
+                            sapply(1:k,
+                              function(l) sapply(1:length(continuous.imp.vars),
+                               function(i) 
+                                ks.test(data[[m]][[p]][[l]][,continuous.imp.vars[i]],truth[,continuous.imp.vars[i]])$statistic))),
+                                  nm= names(miss.prob))), nm = miss.mech.vec)
+            
             results <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                        as.data.frame(t(results[[m]]))), nm = miss.mech.vec)
+                        setNames(lapply(seq_along(miss.prob), function(p) 
+                          as.data.frame(t(results[[m]][[p]]))),
+                           nm= names(miss.prob))), nm = miss.mech.vec)
             for (m in 1:length(miss.mech.vec)){ 
-              colnames(results[[m]]) <- continuous.imp.vars
-            }
+              for (p in 1:length(miss.prob)){
+                colnames(results[[m]][[p]]) <- continuous.imp.vars
+              }
+            }  
             return(results)
 }     
 
 misclass.error <- function(data=data){
-  results <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                        sapply(1:k,
-                          function(l) sapply(1:length(discrete.imp.vars),
-                            function(i) 1-sum(diag(table(data[[m]][[l]][,discrete.imp.vars[i]],
-                              truth[,discrete.imp.vars[i]])))/sum(table(bn.imp[[m]][[l]][,discrete.imp.vars[i]],
-                                truth[,discrete.imp.vars[i]])))),
-                                  mc.cores = numCores), nm = miss.mech.vec)
   results <- setNames(lapply(1:length(miss.mech.vec), function(m)
-              as.data.frame(t(results[[m]]))), nm = miss.mech.vec)
+               setNames(lapply(seq_along(miss.prob), function(p) 
+                sapply(1:k,
+                  function(l) sapply(1:length(discrete.imp.vars),
+                    function(i) 
+                      1-sum(diag(table(data[[m]][[p]][[l]][,discrete.imp.vars[i]],
+                        truth[,discrete.imp.vars[i]])))/sum(table(data[[m]][[p]][[l]][,discrete.imp.vars[i]],
+                          truth[,discrete.imp.vars[i]]))))),
+                            nm= names(miss.prob))), nm = miss.mech.vec)
   
+  results <- setNames(lapply(1:length(miss.mech.vec), function(m)
+              setNames(lapply(seq_along(miss.prob), function(p) 
+                as.data.frame(t(results[[m]][[p]]))),
+                  nm= names(miss.prob))), nm = miss.mech.vec)
   for (m in 1:length(miss.mech.vec)){ 
-    colnames(results[[m]]) <- discrete.imp.vars
-  }
+    for (p in 1:length(miss.prob)){
+      colnames(results[[m]][[p]]) <- discrete.imp.vars
+    }
+  }  
   return(results)
 }
 
 ####2nd level for continuous variables:
 bd.full <- function(data=data){
-  results <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-              sapply(1:k, function(l) bd.test(x = select(data[[m]][[l]], 
-                one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
-                  one_of(continuous.imp.vars, discrete.imp.vars)))$statistic),
-                    mc.cores = numCores), nm = miss.mech.vec)
+  results <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.vec), function(m)
+              setNames(mclapply(mc.cores=numCores, seq_along(miss.prob), function(p) 
+                sapply(1:k, function(l) bd.test(x = select(data[[m]][[p]][[l]], 
+                  one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
+                    one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+                     nm= names(miss.prob))), nm = miss.mech.vec)
   return(results)
 }
+
+summ.reps <- function(data=data, sum.func = mean){
+  results <- setNames(lapply(1:length(miss.mech.vec), function(m)
+    as.data.frame(sapply(seq_along(miss.prob), function(p)
+      sapply(1:k, function(i)
+        sum.func(data[[m]][[p]][1:i]))))),nm=miss.mech.vec)
+  for (m in 1:length(miss.mech.vec)){
+    colnames(results[[m]]) <- names(miss.prob)
+  }
+  return(results)
+}
+
 
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#

@@ -328,11 +328,10 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
           lapply(1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
 
-bn.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-            setNames(lapply(seq_along(miss.prob), function(p) 
-              mclapply(1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-                dat=mi.multiple.imp[[m]][[p]][[l]]), mc.cores = numCores), mc.cores = numCores), 
-                  nm= names(miss.prob))), nm = miss.mech.vec)
+bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+            setNames(mclapply(mc.cores = numCores, seq_along(miss.prob), function(p) 
+              mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
 
 
@@ -340,10 +339,9 @@ bn.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
 
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
-            lapply(1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
-              dat=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
+            lapply(1:k, function(l) bnrc.imp(bn=bn[[m]][[1]][[l]], 
+              dat=mi.multiple.imp[[m]][[1]][[l]], cnt.break = 5, returnfull = F))),
                 nm= names(miss.prob))), nm = miss.mech.vec)
-
 
 #### Algorithm done
 
@@ -380,15 +378,17 @@ bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
 ## the reason why mice performs poorly is the inability to follow logical constraints... sometimes "0" values will be impuated
 
 for (m in 1:length(miss.mech.vec)){
-  for (l in 1:k){
-  mi.multiple.imp[[m]][[l]] <- mi.multiple.imp[[m]][[l]] %>% 
-    mutate(employed = ifelse(lmstatus %in% c(1,2,4), 1,0))
-  }
+  for (p in 1:length(miss.prob)){
+    for (l in 1:k){
+    mi.multiple.imp[[m]][[p]][[l]] <- mi.multiple.imp[[m]][[p]][[l]] %>% 
+      mutate(employed = ifelse(lmstatus %in% c(1,2,4), 1,0))
+    }
+  }  
 }  
-imp <- mice(mi.multiple.imp[[1]][[1]], maxit = 0, print=F)
+imp <- mice(mi.multiple.imp[[1]][[1]][[1]], maxit = 0, print=F)
 meth <- imp$method
 pred <- imp$predictorMatrix
-rel_label <- miss_var_summary(mi.multiple.imp[[1]][[1]][,names(mi.multiple.imp[[1]][[1]]) != "pid"], order = T)
+rel_label <- miss_var_summary(mi.multiple.imp[[1]][[1]][[1]][,names(mi.multiple.imp[[1]][[1]][[1]]) != "pid"], order = T)
 reliability <- rel_label$pct_miss
 names(reliability) <- rel_label$variable
 #pred[,"pid"] <- 0
@@ -422,38 +422,43 @@ pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
 pred["lnbuilding", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
 
 #### specify possible range for logical constraints
-post <- make.post(mi.multiple.imp[[1]][[1]])
+post <- make.post(mi.multiple.imp[[1]][[1]][[1]])
 
-post["lnresidence"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], owner==1)$lnresidence, na.rm=T), Inf))"
-post["lnestate"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], other_estate==1)$lnestate, na.rm=T), Inf))"
-post["lnassets"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], assets_filter==1)$lnassets, na.rm=T), Inf))"
-post["lnbuilding"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], building_contract_filter==1)$lnbuilding, na.rm=T), Inf))"
-post["lnlife"]           <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], life_insure_filter==1)$lnlife, na.rm=T), Inf))"
-post["lnbusiness"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], business_holdings_filter==1)$lnbusiness, na.rm=T), Inf))"
-post["lnvehicles"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], vehicles_filter==1)$lnvehicles, na.rm=T), Inf))"
-post["lntangibles"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], tangibles_filter==1)$lntangibles, na.rm=T), Inf))"
-post["lnresidence_debt"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], residence_debt_filter==1)$lnresidence_debt, na.rm=T), Inf))"
-post["lnestate_debt"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], other_estate_debt_filter==1)$lnestate_debt, na.rm=T), Inf))"
-post["lnconsumer_debt"]  <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], consumer_debt_filter==1)$lnconsumer_debt, na.rm=T), Inf))"
-post["lnstudent_debt"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], education_debt_filter==1)$lnstudent_debt, na.rm=T), Inf))"
+post["lnresidence"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], owner==1)$lnresidence, na.rm=T), Inf))"
+post["lnestate"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], other_estate==1)$lnestate, na.rm=T), Inf))"
+post["lnassets"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], assets_filter==1)$lnassets, na.rm=T), Inf))"
+post["lnbuilding"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], building_contract_filter==1)$lnbuilding, na.rm=T), Inf))"
+post["lnlife"]           <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], life_insure_filter==1)$lnlife, na.rm=T), Inf))"
+post["lnbusiness"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], business_holdings_filter==1)$lnbusiness, na.rm=T), Inf))"
+post["lnvehicles"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], vehicles_filter==1)$lnvehicles, na.rm=T), Inf))"
+post["lntangibles"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], tangibles_filter==1)$lntangibles, na.rm=T), Inf))"
+post["lnresidence_debt"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], residence_debt_filter==1)$lnresidence_debt, na.rm=T), Inf))"
+post["lnestate_debt"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], other_estate_debt_filter==1)$lnestate_debt, na.rm=T), Inf))"
+post["lnconsumer_debt"]  <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], consumer_debt_filter==1)$lnconsumer_debt, na.rm=T), Inf))"
+post["lnstudent_debt"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], education_debt_filter==1)$lnstudent_debt, na.rm=T), Inf))"
 
-post["lnjobduration"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], employed==1)$lnjobduration, na.rm=T), Inf))"
-post["lnworkinghours"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], employed==1)$lnworkinghours, na.rm=T), Inf))"
-post["lnwage_gross"]     <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], employed==1)$lnwage_gross, na.rm=T), Inf))"
-post["lnwage_net"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], employed==1)$lnwage_net, na.rm=T), Inf))"
-post["lnsaving"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], saving==1)$lnsaving, na.rm=T), Inf))"
-post["lninheritance"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]], inherit_filter==1)$lninheritance, na.rm=T), Inf))"
+post["lnjobduration"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnjobduration, na.rm=T), Inf))"
+post["lnworkinghours"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnworkinghours, na.rm=T), Inf))"
+post["lnwage_gross"]     <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnwage_gross, na.rm=T), Inf))"
+post["lnwage_net"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnwage_net, na.rm=T), Inf))"
+post["lnsaving"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], saving==1)$lnsaving, na.rm=T), Inf))"
+post["lninheritance"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], inherit_filter==1)$lninheritance, na.rm=T), Inf))"
 
-post["superior"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]]$superior)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]]$superior)[3])))"
-post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]]$compsize)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]]$compsize)[8])))"
+post["superior"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$superior)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$superior)[3])))"
+post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[8])))"
 
 
-mice.imp <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-              mclapply(1:k, function(l) mice(mi.multiple.imp[[m]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1), mc.cores = numCores),
-                mc.cores = numCores), nm = miss.mech.vec)
+mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+              setNames(mclapply(mc.cores = numCores, seq_along(miss.prob), function(p) 
+                mclapply(mc.cores = numCores, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1))),
+                  nm=names(miss.prob))), nm=miss.mech.vec)
 
-mice.imp.complete <- setNames(mclapply(1:length(miss.mech.vec), function(m)
-                      lapply(1:k, function(l) mice::complete(mice.imp[[m]][[l]],action="long")),mc.cores = numCores), nm = miss.mech.vec)
+
+
+mice.imp.complete <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.vec), function(m)
+                      setNames(mclapply(mc.cores = numCores, seq_along(miss.prob), function(p) 
+                        lapply(1:k, function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
+                          nm=names(miss.prob))),nm = miss.mech.vec)
 
 
 #save(mice.imp, file = "mice.RDA")
@@ -474,13 +479,14 @@ lvl1.bnrc <- ks.list(data = bnrc)
 lvl1.mice <- ks.list(data = mice.imp.complete)
 
 setNames(lapply(1:length(miss.mech.vec), function(m) 
-  sapply(lvl1.bn[[m]], mean, na.omit =T) < sapply(lvl1.mice[[m]], mean, na.omit =T)), nm = miss.mech.vec)
-
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(lvl1.bn[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
 setNames(lapply(1:length(miss.mech.vec), function(m) 
-  sapply(lvl1.bnrc[[m]], mean, na.omit =T) < sapply(lvl1.bn[[m]], mean, na.omit =T)), nm = miss.mech.vec)
-
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
 setNames(lapply(1:length(miss.mech.vec), function(m) 
-  sapply(lvl1.bnrc[[m]], mean, na.omit =T) < sapply(lvl1.mice[[m]], mean, na.omit =T)), nm = miss.mech.vec)
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.bn[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
 
 #### Latex table representation: 
 
@@ -594,81 +600,37 @@ lvl2.mice <- bd.full(data=mice.imp.complete)
 
 #### plotting mean over repetitions:
 
-reps <- 1:k
-bn.mean <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-bnrc.mean <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-mice.mean <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-bn.sdup <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-bn.sdlow <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-bnrc.sdup <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-bnrc.sdlow <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-mice.sdup <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-mice.sdlow <- list("MCAR" = NULL, "MNAR" = NULL, "MAR" = NULL)
-
-for (m in 1:3){
-  for (i in 1:k){
-      bn.mean[[m]][i] <- mean(lvl2.bn[[m]][1:i])
-      bn.sdup[[m]][i] <- mean(lvl2.bn[[m]][1:i]) + sd(lvl2.bn[[m]][1:i])
-      bn.sdlow[[m]][i] <- mean(lvl2.bn[[m]][1:i]) - sd(lvl2.bn[[m]][1:i])
-      
-      bnrc.mean[[m]][i] <- mean(lvl2.bnrc[[m]][1:i])
-      bnrc.sdup[[m]][i] <- mean(lvl2.bnrc[[m]][1:i]) + sd(lvl2.bnrc[[m]][1:i])
-      bnrc.sdlow[[m]][i] <- mean(lvl2.bnrc[[m]][1:i]) - sd(lvl2.bnrc[[m]][1:i])
-      
-      mice.mean[[m]][i] <- mean(lvl2.mice[[m]][1:i])
-      mice.sdup[[m]][i] <- mean(lvl2.mice[[m]][1:i]) + sd(lvl2.mice[[m]][1:i])
-      mice.sdlow[[m]][i] <- mean(lvl2.mice[[m]][1:i]) - sd(lvl2.mice[[m]][1:i])
-  }
+bnrc.mean <- setNames(lapply(1:length(miss.mech.vec), function(m)
+              as.data.frame(sapply(seq_along(miss.prob), function(p)
+                sapply(1:k, function(i)
+                  mean(lvl2.bnrc[[m]][[p]][1:i]))))),nm=miss.mech.vec)
+for (m in 1:length(miss.mech.vec)){
+  colnames(bnrc.mean[[m]]) <- names(miss.prob)
 }
 
-plotdata <- as.data.frame(cbind(reps,bn.mean[[1]], bn.sdup[[1]], bn.sdlow[[1]],
-                                     bnrc.mean[[1]], bnrc.sdup[[1]], bnrc.sdlow[[1]],
-                                     mice.mean[[1]], mice.sdup[[1]], mice.sdlow[[1]],
-                                     bn.mean[[2]], bn.sdup[[2]], bn.sdlow[[2]],
-                                     bnrc.mean[[2]], bnrc.sdup[[2]], bnrc.sdlow[[2]],
-                                     mice.mean[[2]], mice.sdup[[2]], mice.sdlow[[2]],
-                                     bn.mean[[3]], bn.sdup[[3]], bn.sdlow[[3]],
-                                     bnrc.mean[[3]], bnrc.sdup[[3]], bnrc.sdlow[[3]],
-                                     mice.mean[[3]], mice.sdup[[3]], mice.sdlow[[3]]))
-colnames(plotdata) <-  c("Repetition", "bnMCAR", "bnsdupMCAR", "bnsdlowMCAR",
-                         "bnrcMCAR", "bnrcsdupMCAR", "bnrcsdlowMCAR",
-                         "miceMCAR", "micesdupMCAR", "micesdlowMCAR",
-                         "bnMNAR", "bnsdupMNAR", "bnsdlowMNAR",
-                         "bnrcMAR", "bnrcsdupMAR", "bnrcsdlowMAR",
-                         "miceMNAR", "micesdupMNAR", "micesdlowMNAR",
-                         "bnMAR", "bnsdupMAR", "bnsdlowMAR",
-                         "bnrcMNAR", "bnrcsdupMNAR", "bnrcsdlowMNAR",
-                         "miceMAR", "micesdupMAR", "micesdlowMAR")
+bn.mean <- summ.reps(data = lvl2.bn)
+bnrc.mean <- summ.reps(data = lvl2.bnrc)
+mice.mean <- summ.reps(data = lvl2.mice)
+reps <- 1:k
 
 plot1 <- ggplot() +
-  geom_line(data = plotdata, aes(Repetition,bnMCAR,color="BNimp MCAR")) +
-  geom_line(data = plotdata, aes(Repetition,bnrcMCAR,color="BNRC MCAR")) +
-  geom_line(data = plotdata, aes(Repetition,miceMCAR,color="MICE MCAR")) +
+  geom_line(data = bn.mean$MCAR, aes(reps, bn.mean$MCAR$`0.1`, color="BNimp MCAR, miss:10%")) +
+  geom_line(data = bnrc.mean$MCAR, aes(reps, bnrc.mean$MCAR$`0.1`, color="BNRC MCAR, miss:10%")) +
+  geom_line(data = mice.mean$MCAR, aes(reps, mice.mean$MCAR$`0.1`, color="MICE MCAR, miss:10%")) +
   labs(color="Imputation scheme") +
   ylab("Ball divergence") +
   theme(legend.position = "bottom")
-
-ggsave("mcarplot.pdf")
+ggsave("mcarplot01.pdf")
 
 plot2 <- ggplot() +
-  geom_line(data = plotdata, aes(Repetition,bnMNAR,color="BNimp MNAR")) +
-  geom_line(data = plotdata, aes(Repetition,bnrcMCAR,color="BNRC MNAR")) +
-  geom_line(data = plotdata, aes(Repetition,miceMNAR,color="MICE MNAR")) +
-  labs(color="Imputation schemes") +
+  geom_line(data = bn.mean$MNAR, aes(reps, bn.mean$MNAR$`0.3`, color="BNimp MCAR, miss:30%")) +
+  geom_line(data = bnrc.mean$MNAR, aes(reps, bnrc.mean$MNAR$`0.3`, color="BNRC MCAR, miss:30%")) +
+  geom_line(data = mice.mean$MNAR, aes(reps, mice.mean$MNAR$`0.3`, color="MICE MCAR, miss:30%")) +
+  labs(color="Imputation scheme") +
   ylab("Ball divergence") +
   theme(legend.position = "bottom")
+ggsave("mnarplot03.pdf")
 
-ggsave("mnarplot.pdf")
-
-plot3 <- ggplot() +
-  geom_line(data = plotdata, aes(Repetition,bnMAR,color="BNimp MAR")) +
-  geom_line(data = plotdata, aes(Repetition,bnrcMCAR,color="BNRC MAR")) +
-  geom_line(data = plotdata, aes(Repetition,miceMAR,color="MICE MAR")) +
-  labs(color="Imputation schemes") +
-  ylab("Ball divergence") +
-  theme(legend.position = "bottom")
-
-ggsave("marplot.pdf")
 
 
 setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bn[[m]]) < mean(lvl2.mice[[m]])), nm = miss.mech.vec)
