@@ -430,6 +430,134 @@ summ.reps <- function(data=data, sum.func = mean){
 }
 
 
+#### for continuous vars:
+make.lvl1.table <- function(which.mc.error="MCE"){
+  level1.table <-   setNames(lapply(seq_along(miss.prob), function(p)
+    sapply(seq_along(table.imp), function(i)
+      sapply(table.imp[[i]][[p]][[1]], mean, na.omit =T))),nm=names(miss.prob))
+  for (p in 1:length(miss.prob)){
+    for (m in 2:3){
+      level1.table[[p]] <- cbind(level1.table[[p]], 
+                                 setNames(lapply(seq_along(miss.prob), function(p)  
+                                   sapply(seq_along(table.imp), function(i)
+                                     sapply(table.imp[[i]][[p]][[m]], mean, na.omit =T))),nm=names(miss.prob))[[p]])
+    }
+  }  
+  
+  for (p in 1:length(miss.prob)){
+    colnames(level1.table[[p]]) <- rep(names(table.imp),3)
+    level1.table[[p]] <- round(level1.table[[p]], digits = 4)
+  }
+  
+  level1.table.sd <-   setNames(lapply(seq_along(miss.prob), function(p)
+    sapply(seq_along(table.imp), function(i)
+      sapply(table.imp[[i]][[p]][[1]], sd, na.omit =T))),nm=names(miss.prob))
+  
+  if (which.mc.error=="MCE"){
+    for (p in 1:length(miss.prob)){
+      for (m in 2:3){
+        level1.table.sd[[p]] <- cbind(level1.table.sd[[p]], 
+                                      setNames(lapply(seq_along(miss.prob), function(p)  
+                                        sapply(seq_along(table.imp), function(i)
+                                          sapply(table.imp[[i]][[p]][[m]], sd, na.omit =T))),nm=names(miss.prob))[[p]])
+      }
+    }  
+  } else if (which.mc.error=="MCVar"){
+    for (p in 1:length(miss.prob)){
+      for (m in 2:3){
+        level1.table.sd[[p]] <- cbind(level1.table.sd[[p]], 
+                                      setNames(lapply(seq_along(miss.prob), function(p)  
+                                        sapply(seq_along(table.imp), function(i)
+                                          sapply(table.imp[[i]][[p]][[m]], var, na.omit =T))),nm=names(miss.prob))[[p]])
+      }
+    }   
+  }
+  
+  for (p in 1:length(miss.prob)){
+    colnames(level1.table.sd[[p]]) <- rep(names(table.imp),3)
+    level1.table.sd[[p]] <- apply(round(level1.table.sd[[p]], digits = 4), 2, function(i) paste("(", i, ")", sep=""))
+  }
+  
+  output <- list("0,1"=NULL,"0.2"=NULL,"0.3" = NULL)
+  for (p in 1:length(miss.prob)){
+    table.names <- NULL
+    table.empty <- rep("",length(continuous.imp.vars))
+    for (i in 1:nrow(level1.table[[p]])){
+      output[[p]] <- rbind(output[[p]], level1.table[[p]][i,])
+      table.names <- c(table.names,continuous.imp.vars[i])
+      output[[p]] <- rbind(output[[p]], level1.table.sd[[p]][i,])
+      table.names <- c(table.names,table.empty[i])
+    }
+    rownames(output[[p]]) <- table.names
+  }
+  return(output)
+}
+
+#### for discrete vars:
+
+make.lvl1.misclass.table <- function(which.mc.error="MCE"){
+  level1.table <-   setNames(lapply(seq_along(miss.prob), function(p)
+                      sapply(seq_along(table.disc.imp), function(i)
+                        sapply(table.disc.imp[[i]][[p]][[1]], mean, na.omit =T))),nm=names(miss.prob))
+  for (p in 1:length(miss.prob)){
+    for (m in 2:3){
+      level1.table[[p]] <- cbind(level1.table[[p]], 
+                                 setNames(lapply(seq_along(miss.prob), function(p)  
+                                   sapply(seq_along(table.disc.imp), function(i)
+                                     sapply(table.disc.imp[[i]][[p]][[m]], mean, na.omit =T))),nm=names(miss.prob))[[p]])
+    }
+  }  
+  
+  for (p in 1:length(miss.prob)){
+    colnames(level1.table[[p]]) <- rep(names(table.disc.imp),3)
+    level1.table[[p]] <- round(level1.table[[p]], digits = 4)
+  }
+  
+  level1.table.sd <-   setNames(lapply(seq_along(miss.prob), function(p)
+    sapply(seq_along(table.disc.imp), function(i)
+      sapply(table.disc.imp[[i]][[p]][[1]], sd, na.omit =T))),nm=names(miss.prob))
+  
+  if (which.mc.error=="MCE"){
+    for (p in 1:length(miss.prob)){
+      for (m in 2:3){
+        level1.table.sd[[p]] <- cbind(level1.table.sd[[p]], 
+                                      setNames(lapply(seq_along(miss.prob), function(p)  
+                                        sapply(seq_along(table.disc.imp), function(i)
+                                          sapply(table.disc.imp[[i]][[p]][[m]], sd, na.omit =T))),nm=names(miss.prob))[[p]])
+      }
+    }  
+  } else if (which.mc.error=="MCVar"){
+    for (p in 1:length(miss.prob)){
+      for (m in 2:3){
+        level1.table.sd[[p]] <- cbind(level1.table.sd[[p]], 
+                                      setNames(lapply(seq_along(miss.prob), function(p)  
+                                        sapply(seq_along(table.disc.imp), function(i)
+                                          sapply(table.disc.imp[[i]][[p]][[m]], var, na.omit =T))),nm=names(miss.prob))[[p]])
+      }
+    }   
+  }
+  
+  for (p in 1:length(miss.prob)){
+    colnames(level1.table.sd[[p]]) <- rep(names(table.disc.imp),3)
+    level1.table.sd[[p]] <- apply(round(level1.table.sd[[p]], digits = 4), 2, function(i) paste("(", i, ")", sep=""))
+  }
+  
+  output <- list("0,1"=NULL,"0.2"=NULL,"0.3" = NULL)
+  for (p in 1:length(miss.prob)){
+    table.names <- NULL
+    table.empty <- rep("",length(discrete.imp.vars))
+    for (i in 1:nrow(level1.table[[p]])){
+      output[[p]] <- rbind(output[[p]], level1.table[[p]][i,])
+      table.names <- c(table.names,discrete.imp.vars[i])
+      output[[p]] <- rbind(output[[p]], level1.table.sd[[p]][i,])
+      table.names <- c(table.names,table.empty[i])
+    }
+    rownames(output[[p]]) <- table.names
+  }
+  return(output)
+}
+
+
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#
