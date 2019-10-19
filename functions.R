@@ -288,9 +288,11 @@ bn.parents.imp <- function(bn=bn, dag=dag, dat=dat, seed = NULL){
 ############################################################################################################ 
 # BN Reliability Chain imputation:
 
-bnrc.imp <- function(bn=bn, dat=dat, cnt.break = cnt.break, returnfull = TRUE, seed = NULL){
+bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE, seed = NULL){
   set.seed(seed)
   # prepare
+  dat <- data
+  original <- dat
   rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
   reliability <- rel_label$pct_miss
   names(reliability) <- rel_label$variable
@@ -329,7 +331,7 @@ bnrc.imp <- function(bn=bn, dat=dat, cnt.break = cnt.break, returnfull = TRUE, s
       break
     }
     for (i in 1:length(reliability)){
-      dat[,names(reliability)[i]] <- mi.multiple.imp$MCAR[[1]][[1]][,names(reliability)[i]] 
+      dat[,names(reliability)[i]] <- original[,names(reliability)[i]] 
       dat_mi <- as.data.frame(dat[is.na(dat[,names(reliability[i])]),mb[[i]]])
       colnames(dat_mi) <- mb[[i]]
       listtest <- setNames(lapply(1:nrow(dat_mi), function(r)

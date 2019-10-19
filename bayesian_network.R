@@ -266,7 +266,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 
 
-k <- 500
+k <- 10
 set.seed(1234)
 numCores <- detectCores() -1
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
@@ -339,9 +339,10 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
 
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
-            mclapply(mc.cores = numCores, 1:k, function(l) bnrc.imp(bn=bn[[m]][[1]][[l]], 
-              dat=mi.multiple.imp[[m]][[1]][[l]], cnt.break = 5, returnfull = F))),
+            mclapply(mc.cores = numCores, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
+              data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
                 nm= names(miss.prob))), nm = miss.mech.vec)
+
 
 #### Algorithm done
 
