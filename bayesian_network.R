@@ -343,7 +343,6 @@ bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
                 nm= names(miss.prob))), nm = miss.mech.vec)
 
-
 #### Algorithm done
 
 # Bayesian Network Reliability Chain (BNRC) algorithm:
@@ -354,7 +353,7 @@ bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
 
 # Now, continue to the nex least reliable node X_t+1 and do the same. Should X_t be included in the Markov blanket set of X_t+1
 # do not use the mean, but the just imputed values. Should there be a variable in the Markov blanket set that is missing and has not yet been 
-# imputed, again fill those missings in by the mean. This way, proceed up the reliability order until all nodes are filled in. 
+# imputed, ignore those in the first round... hopefully . This way, proceed up the reliability order until all nodes are filled in. 
 # More reliable variables will thus more likely have missing observations in der Markov parent set, while less reliable ones
 # have less missings in their conditioning set. 
 

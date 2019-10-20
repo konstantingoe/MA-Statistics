@@ -288,8 +288,7 @@ bn.parents.imp <- function(bn=bn, dag=dag, dat=dat, seed = NULL){
 ############################################################################################################ 
 # BN Reliability Chain imputation:
 
-bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE, seed = NULL){
-  set.seed(seed)
+bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE){
   # prepare
   dat <- data
   original <- dat
@@ -314,9 +313,16 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE,
     }
     listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
       setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=names(dat_mi))
-    test <- mclapply(mc.cores = numCores, 1:nrow(dat_mi), function(r) 
-      bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw"))
-    
+    test <- mclapply(mc.cores = numCores ,1:nrow(dat_mi), function(r) 
+      tryCatch({
+        bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
+    if (sum(sapply(test, is.null))>0){
+      test.null <- which(sapply(test, is.null))
+      for (t in 1:length(test.null)){
+        test[[test.null[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
+      }
+    }
     testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]]), 1))
     dat_mi[names(reliability)[i]] <- testsample
     dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
@@ -342,7 +348,9 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE,
         }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
       if (sum(sapply(test, is.null))>0){
         test.null <- which(sapply(test, is.null))
-        test[[test.null]] <- dat.store[[count]][is.na(dat[,names(reliability[i])]),names(reliability[i])][test.null] 
+        for (t in 1:length(test.null)){
+          test[[test.null[t]]] <- dat.store[[count]][is.na(dat[,names(reliability[i])]),names(reliability[i])][test.null[t]] 
+        }
       }
       testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]]), 1))
       dat_mi[names(reliability)[i]] <- testsample
