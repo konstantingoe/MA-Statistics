@@ -31,7 +31,7 @@ mean_or_mode <- function(y){
 
 #generate MCAR data from full dataset
 make.mcar <- function(data, miss.prob=miss.prob, cond = NULL){
-  data1 <- select(data, one_of(cond))  
+  data1 <- dplyr::select(data, dplyr::one_of(cond))  
   for (i in 1: ncol(data1)){
     if (is.numeric(data1[,i])){ 
       n1 <- nrow(data1) - nrow(data1[data1[,i] != -99,])
@@ -51,7 +51,7 @@ make.mcar <- function(data, miss.prob=miss.prob, cond = NULL){
       data1[rbinom(n, 1, 1-p) == 0,i] <- NA
     }  
   }
-  data <- cbind(select(data, -cond),data1)
+  data <- cbind(dplyr::select(data, -cond),data1)
   return(data)
 }
 
@@ -59,7 +59,7 @@ make.mcar <- function(data, miss.prob=miss.prob, cond = NULL){
 #generate MAR data from full dataset
 
 make.mar <- function(data, miss.prob=miss.prob, cond = NULL, x.vars = NULL){
-  data1 <- select(data, one_of(cond, x.vars))  
+  data1 <- dplyr::select(data, dplyr::one_of(cond, x.vars))  
   f <- function(t) {            # Define a path through parameter space
     sapply(t, function(y) mean(1 / (1 + exp(-y -x %*% beta))))
   }
@@ -68,7 +68,7 @@ make.mar <- function(data, miss.prob=miss.prob, cond = NULL, x.vars = NULL){
       #define formula for each of the missing dependent vars
       frmla <- as.formula(paste(cond[i], paste(x.vars[1:length(x.vars)], sep = "", 
                                                collapse = " + "), sep = " ~ "))
-      x <- sapply(select(data1[data1[,cond[i]] != -99,], one_of(x.vars)), as.numeric)
+      x <- sapply(dplyr::select(data1[data1[,cond[i]] != -99,], dplyr::one_of(x.vars)), as.numeric)
       reg <- lm(frmla, data = as.data.frame(sapply(data1[data1[,cond[i]] != -99,], as.numeric)))
       beta <- reg$coefficients[-1]  # Fix the coefficients through regression
       if (sum(is.na(beta)) > 0){
@@ -101,7 +101,7 @@ make.mar <- function(data, miss.prob=miss.prob, cond = NULL, x.vars = NULL){
     } else {
       frmla <- as.formula(paste(cond[i], paste(x.vars[1:length(x.vars)], sep = "", 
                                                collapse = " + "), sep = " ~ "))
-      x <- sapply(select(data1[data1[,cond[i]] != -2,], one_of(x.vars)), as.numeric)
+      x <- sapply(dplyr::select(data1[data1[,cond[i]] != -2,], dplyr::one_of(x.vars)), as.numeric)
       reg <- lm(frmla, data = as.data.frame(sapply(data1[data1[,cond[i]] != -2,], as.numeric)))
       beta <- reg$coefficients[-1]  # Fix the coefficients through regression
       if (sum(is.na(beta)) > 0){
@@ -132,7 +132,7 @@ make.mar <- function(data, miss.prob=miss.prob, cond = NULL, x.vars = NULL){
       data1[rbinom(n, 1, p) == 1,cond[i]] <- NA
     }
   }
-  data <- cbind(select(data, -cond, -x.vars),data1)
+  data <- cbind(dplyr::select(data, -cond, -x.vars),data1)
   return(data)
 }
 
@@ -141,7 +141,7 @@ make.mar <- function(data, miss.prob=miss.prob, cond = NULL, x.vars = NULL){
 
 #generate MNAR data from full dataset
 make.mnar <- function(data, miss.prob=miss.prob, cond = NULL){
-  data1 <- select(data, one_of(cond))  
+  data1 <- dplyr::select(data, dplyr::one_of(cond))  
   for (i in 1: ncol(data1)){
     if (is.numeric(data1[,i])){ 
       data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])] = ifelse(sample(c(T, F),
@@ -170,7 +170,7 @@ make.mnar <- function(data, miss.prob=miss.prob, cond = NULL){
       r  <- rbinom(n, size = 1, prob=p)
       data1[r==1,i] <- NA    }
   }  
-  data <- cbind(select(data, -cond),data1)
+  data <- cbind(dplyr::select(data, -cond),data1)
   return(data)
 }
 
@@ -235,8 +235,7 @@ arc.reversal2 <- function(object = object){
 
 #### BN-imputation by parents function ####
 
-bn.parents.imp <- function(bn=bn, dag=dag, dat=dat, seed = NULL){
-  set.seed(seed)
+bn.parents.imp <- function(bn=bn, dag=dag, dat=dat){
   rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
   reliability <- rel_label$pct_miss
   names(reliability) <- rel_label$variable
@@ -421,9 +420,9 @@ misclass.error <- function(data=data){
 bd.full <- function(data=data){
   results <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.vec), function(m)
               setNames(mclapply(mc.cores=numCores, seq_along(miss.prob), function(p) 
-                sapply(1:k, function(l) bd.test(x = select(data[[m]][[p]][[l]], 
-                  one_of(continuous.imp.vars, discrete.imp.vars)), y = select(truth, 
-                    one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+                sapply(1:k, function(l) bd.test(x = dplyr::select(data[[m]][[p]][[l]], 
+                  dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+                    dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
                      nm= names(miss.prob))), nm = miss.mech.vec)
   return(results)
 }
