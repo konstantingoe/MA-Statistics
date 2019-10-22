@@ -3,7 +3,7 @@
 ##### Testing MAR ######
 rm(list = ls())
 source("packages.R")
-source(".path.R")
+#source(".path.R")
 source("functions.R")
 mypath<- "/soep/kgoebler/data"
 mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
@@ -126,7 +126,7 @@ targetvars <- c("pid", "age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma
                 "saving", "saving_value", "kidsu16")
 
 data <- dplyr::select(mydata, dplyr::one_of(targetvars))
-gg_miss_var(data, show_pct = TRUE)
+#gg_miss_var(data, show_pct = TRUE)
 #ggsave("missing.pdf")
 
 #all except 12 wealth components plus inheritance and saving which will also be imputed when filter is imputed 
@@ -152,7 +152,7 @@ filterimp2 <- c("age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma3", "wu
                 "saving", "kidsu16") 
   
 filter <- dplyr::select(data, dplyr::one_of(filterimp))
-gg_miss_var(filter, show_pct = TRUE)
+#gg_miss_var(filter, show_pct = TRUE)
 
 # first impute filter variables 
 filter.imp <- VIM::kNN(filter, variable = filterimp2, dist_var = colnames(filter[, -which(names(filter) == "pid")]),
@@ -182,7 +182,7 @@ for (i in 1:length(filters2)){
 
 wealth.imp <- VIM::kNN(wealth.comp, variable = wealth.vars2, dist_var = colnames(wealth.comp[, -which(names(wealth.comp) == "pid")]),
                        donorcond =  as.list(rep("!= -2",length(wealth.vars2))), imp_var =F)
-gg_miss_var(wealth.imp, show_pct = TRUE)
+#gg_miss_var(wealth.imp, show_pct = TRUE)
 
 #### recode all -2 to missings for transformation and then recode them to a new logical missing code
 exceptions <- c("pid", "age", "hhgr", "orbis_wealth", "sqmtrs", "hhnetto")
@@ -233,7 +233,7 @@ for (i in 1:length(lnrecode.vars)){
 }
 
 truth <- dplyr::select(truth, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
-gg_miss_var(truth, show_pct = TRUE)
+#gg_miss_var(truth, show_pct = TRUE)
 
 from <- c(filters, rep("lmstatus", 6), "saving", "inherit_filter")
 to <- c(lnwealthvars, "lnjobduration", "lnworkinghours", "lnwage_gross", "lnwage_net", "compsize", "superior", "lnsaving", "lninheritance")
@@ -241,8 +241,8 @@ whitelist <- as.data.frame(cbind(from,to))
 
 
 truth.structure <- hc(truth[, -which(names(truth) == "pid")], whitelist = whitelist, score = "bic-cg")
-bnplot <- ggnet2(truth.structure$arcs,
-       arrow.size = 9, arrow.gap = 0.025, label = T)
+#bnplot <- ggnet2(truth.structure$arcs,
+#       arrow.size = 9, arrow.gap = 0.025, label = T)
 #ggsave("truthstruct.pdf", plot = bnplot)
 ###### truth done ######
 
@@ -267,9 +267,9 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 
 
-k <- 5
+k <- 500
 set.seed(1234)
-numCores <- detectCores() -7
+numCores <- detectCores() -3
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
@@ -277,7 +277,7 @@ miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 
 mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
-                        lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
+                        mclapply(mc.cores = numCores, 1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
 
 mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
                     setNames(lapply(seq_along(miss.prob), function(p) 
@@ -309,6 +309,7 @@ mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
                             mc.cores = numCores)), nm= names(miss.prob))), nm = miss.mech.vec)
 
 save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+
 lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
 
@@ -539,6 +540,11 @@ lvl2.bn <- bd.full(data=bn.imp)
 lvl2.bnrc <- bd.full(data=bnrc)
 lvl2.mice <- bd.full(data=mice.imp.complete)
 
+save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
+save(lvl2.bnrc,file = paste(mypath,"bd_bnrc.RDA", sep = "/"))
+save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
+
+
 #### plotting mean over repetitions:
 
 bnrc.mean <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -555,26 +561,26 @@ mice.mean <- summ.reps(data = lvl2.mice)
 reps <- 1:k
 
 #try boxplot:
-boxplotdata <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                setNames(lapply(seq_along(miss.prob), function(p)
-                  data.frame(ball_d = c(bn.mean[[m]][[p]], bnrc.mean[[m]][[p]],mice.mean[[m]][[p]]),
-                             Method = factor(c(rep(1,k), rep(2,k), rep(3,k)), ordered = F, labels= c("BN.imp", "BNRC.imp", "MICE.imp")))), 
-                             nm = names(miss.prob))), nm = miss.mech.vec)
+#boxplotdata <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#                setNames(lapply(seq_along(miss.prob), function(p)
+#                  data.frame(ball_d = c(bn.mean[[m]][[p]], bnrc.mean[[m]][[p]],mice.mean[[m]][[p]]),
+#                             Method = factor(c(rep(1,k), rep(2,k), rep(3,k)), ordered = F, labels= c("BN.imp", "BNRC.imp", "MICE.imp")))), 
+#                             nm = names(miss.prob))), nm = miss.mech.vec)
 
 
-box <-  setNames(lapply(1:length(miss.mech.vec), function(m)
-        lapply(seq_along(miss.prob), function(p)
-        ggplot(boxplotdata[[m]][[p]], aes(x=Method, y=ball_d)) +
-        geom_boxplot(aes(group=Method, color = Method)) +
-        xlab("") +
-        theme(legend.position = "bottom") +
-        ylab("Ball divergence"))), nm = miss.mech.vec) 
-        #ggtitle(paste("Statistical constistency given", 10*p ,"% missing occurance")))
+#box <-  setNames(lapply(1:length(miss.mech.vec), function(m)
+#        lapply(seq_along(miss.prob), function(p)
+#        ggplot(boxplotdata[[m]][[p]], aes(x=Method, y=ball_d)) +
+#        geom_boxplot(aes(group=Method, color = Method)) +
+#        xlab("") +
+#        theme(legend.position = "bottom") +
+#        ylab("Ball divergence"))), nm = miss.mech.vec) 
+#        #ggtitle(paste("Statistical constistency given", 10*p ,"% missing occurance")))
 
-plot_grid(box[[1]][[1]], box[[1]][[2]], box[[1]][[3]],
-          box[[2]][[1]], box[[2]][[2]], box[[2]][[3]],
-          box[[3]][[1]], box[[3]][[2]], box[[3]][[3]],
-          labels = c("10% missing", "20% missing", "30% missing"), ncol = 3, nrow = 3)
+#plot_grid(box[[1]][[1]], box[[1]][[2]], box[[1]][[3]],
+#          box[[2]][[1]], box[[2]][[2]], box[[2]][[3]],
+#          box[[3]][[1]], box[[3]][[2]], box[[3]][[3]],
+#          labels = c("10% missing", "20% missing", "30% missing"), ncol = 3, nrow = 3)
 
 
 
