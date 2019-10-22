@@ -3,9 +3,10 @@
 ##### Testing MAR ######
 rm(list = ls())
 source("packages.R")
-source(".path.R")
+#source(".path.R")
 source("functions.R")
-mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
+mypath<- "/soep/kgoebler/data"
+mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
 
 #potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
 # first impute filter information and then based on these impute wealth components:
@@ -98,7 +99,7 @@ mydata <- mydata %>%
          gborn                           = factor(gborn),
          educationjob                    = factor(educationjob, ordered = T),
          bula                            = factor(bula_sta),
-         bik                             = fct_rev(factor(bik, ordered = T)),
+         bik                             = forcats::fct_rev(factor(bik, ordered = T)),
          ggk                             = factor(ggk, ordered = T),
          wuma7                           = factor(wuma7, ordered = F),
          wuma3                           = factor(wuma3, ordered = T),
@@ -124,9 +125,9 @@ targetvars <- c("pid", "age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma
                 "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
                 "saving", "saving_value", "kidsu16")
 
-data <- select(mydata, one_of(targetvars))
-gg_miss_var(data, show_pct = TRUE)
-ggsave("missing.pdf")
+data <- dplyr::select(mydata, dplyr::one_of(targetvars))
+#gg_miss_var(data, show_pct = TRUE)
+#ggsave("missing.pdf")
 
 #all except 12 wealth components plus inheritance and saving which will also be imputed when filter is imputed 
 
@@ -150,8 +151,8 @@ filterimp2 <- c("age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma3", "wu
                 "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
                 "saving", "kidsu16") 
   
-filter <- select(data, one_of(filterimp))
-gg_miss_var(filter, show_pct = TRUE)
+filter <- dplyr::select(data, dplyr::one_of(filterimp))
+#gg_miss_var(filter, show_pct = TRUE)
 
 # first impute filter variables 
 filter.imp <- VIM::kNN(filter, variable = filterimp2, dist_var = colnames(filter[, -which(names(filter) == "pid")]),
@@ -165,7 +166,7 @@ filters <- c("owner","other_estate", "assets_filter", "building_contract_filter"
              "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
              "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter")
 
-wealth.comp <- full_join(filter.imp,select(data, one_of(c("pid", wealth.vars, "saving_value", "total_inheritance"))), by="pid")
+wealth.comp <- dplyr::full_join(filter.imp,dplyr::select(data, dplyr::one_of(c("pid", wealth.vars, "saving_value", "total_inheritance"))), by="pid")
 
 wealth.vars2 <- c("residence_value", "other_estate_value", "assets", "building_contract",
                  "life_insure", "business_holdings", "vehicles", "tangibles",
@@ -181,12 +182,12 @@ for (i in 1:length(filters2)){
 
 wealth.imp <- VIM::kNN(wealth.comp, variable = wealth.vars2, dist_var = colnames(wealth.comp[, -which(names(wealth.comp) == "pid")]),
                        donorcond =  as.list(rep("!= -2",length(wealth.vars2))), imp_var =F)
-gg_miss_var(wealth.imp, show_pct = TRUE)
+#gg_miss_var(wealth.imp, show_pct = TRUE)
 
 #### recode all -2 to missings for transformation and then recode them to a new logical missing code
 exceptions <- c("pid", "age", "hhgr", "orbis_wealth", "sqmtrs", "hhnetto")
 
-recode.vars <- setdiff(names(select_if(wealth.imp, is.numeric)), exceptions)
+recode.vars <- setdiff(names(dplyr::select_if(wealth.imp, is.numeric)), exceptions)
 
 for (i in 1:length(recode.vars)){
   wealth.imp[,recode.vars[i]] <- ifelse(wealth.imp[,recode.vars[i]] == -2, NA, wealth.imp[,recode.vars[i]])
@@ -231,8 +232,8 @@ for (i in 1:length(lnrecode.vars)){
                                      truth[,lnrecode.vars[i]])
 }
 
-truth <- select(truth, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
-gg_miss_var(truth, show_pct = TRUE)
+truth <- dplyr::select(truth, -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+#gg_miss_var(truth, show_pct = TRUE)
 
 from <- c(filters, rep("lmstatus", 6), "saving", "inherit_filter")
 to <- c(lnwealthvars, "lnjobduration", "lnworkinghours", "lnwage_gross", "lnwage_net", "compsize", "superior", "lnsaving", "lninheritance")
@@ -240,9 +241,9 @@ whitelist <- as.data.frame(cbind(from,to))
 
 
 truth.structure <- hc(truth[, -which(names(truth) == "pid")], whitelist = whitelist, score = "bic-cg")
-bnplot <- ggnet2(truth.structure$arcs,
-       arrow.size = 9, arrow.gap = 0.025, label = T)
-ggsave("truthstruct.pdf", plot = bnplot)
+#bnplot <- ggnet2(truth.structure$arcs,
+#       arrow.size = 9, arrow.gap = 0.025, label = T)
+#ggsave("truthstruct.pdf", plot = bnplot)
 ###### truth done ######
 
 #### prepare simulation #####
@@ -266,9 +267,9 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 
 
-k <- 10
+k <- 500
 set.seed(1234)
-numCores <- detectCores() -1
+numCores <- detectCores() -3
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
@@ -276,7 +277,7 @@ miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 
 mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
-                        lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
+                        mclapply(mc.cores = numCores, 1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
 
 mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
                     setNames(lapply(seq_along(miss.prob), function(p) 
@@ -302,12 +303,13 @@ for (m in 1:length(miss.mech.vec)){
 
 #mi.multiple.imp[[6]][,discrete.imp.vars] <- NULL 
 mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                  setNames(lapply(seq_along(miss.prob), function(p) 
+                  setNames(mclapply(mc.cores = numCores ,seq_along(miss.prob), function(p) 
                     mclapply(1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T),
                             mc.cores = numCores)), nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(mi.structure, file = "structure.RDA")
+save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+
 lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
 
@@ -325,7 +327,7 @@ for (m in 1:length(miss.mech.vec)){
 
 bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
         setNames(lapply(seq_along(miss.prob), function(p) 
-          lapply(1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
+          mclapply(mc.cores = numCores ,1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
 
 bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -335,12 +337,19 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
 
 
 
+<<<<<<< HEAD
 #save(bn.imp, file = "bnimp.RDA")
+=======
+save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
+
+>>>>>>> 4c15c620ee5ec232172b11e5fb0aa53b6a15f7e6
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
-          setNames(lapply(seq_along(miss.prob), function(p) 
+          setNames(mclapply(mc.cores = numCores,seq_along(miss.prob), function(p) 
             mclapply(mc.cores = numCores, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
                 nm= names(miss.prob))), nm = miss.mech.vec)
+
+save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
 
 #### Algorithm done
 
@@ -460,7 +469,7 @@ mice.imp.complete <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.v
                           nm=names(miss.prob))),nm = miss.mech.vec)
 
 
-#save(mice.imp, file = "mice.RDA")
+save(mice.imp, file = paste(mypath,"mice.RDA", sep = "/"))
 
 #### trying to solve the nearest neighbor problem... post processing?
 #Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
@@ -535,6 +544,11 @@ lvl2.bn <- bd.full(data=bn.imp)
 lvl2.bnrc <- bd.full(data=bnrc)
 lvl2.mice <- bd.full(data=mice.imp.complete)
 
+save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
+save(lvl2.bnrc,file = paste(mypath,"bd_bnrc.RDA", sep = "/"))
+save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
+
+
 #### plotting mean over repetitions:
 
 bnrc.mean <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -551,26 +565,26 @@ mice.mean <- summ.reps(data = lvl2.mice)
 reps <- 1:k
 
 #try boxplot:
-boxplotdata <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                setNames(lapply(seq_along(miss.prob), function(p)
-                  data.frame(ball_d = c(bn.mean[[m]][[p]], bnrc.mean[[m]][[p]],mice.mean[[m]][[p]]),
-                             Method = factor(c(rep(1,k), rep(2,k), rep(3,k)), ordered = F, labels= c("BN.imp", "BNRC.imp", "MICE.imp")))), 
-                             nm = names(miss.prob))), nm = miss.mech.vec)
+#boxplotdata <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#                setNames(lapply(seq_along(miss.prob), function(p)
+#                  data.frame(ball_d = c(bn.mean[[m]][[p]], bnrc.mean[[m]][[p]],mice.mean[[m]][[p]]),
+#                             Method = factor(c(rep(1,k), rep(2,k), rep(3,k)), ordered = F, labels= c("BN.imp", "BNRC.imp", "MICE.imp")))), 
+#                             nm = names(miss.prob))), nm = miss.mech.vec)
 
 
-box <-  setNames(lapply(1:length(miss.mech.vec), function(m)
-        lapply(seq_along(miss.prob), function(p)
-        ggplot(boxplotdata[[m]][[p]], aes(x=Method, y=ball_d)) +
-        geom_boxplot(aes(group=Method, color = Method)) +
-        xlab("") +
-        theme(legend.position = "bottom") +
-        ylab("Ball divergence"))), nm = miss.mech.vec) 
-        #ggtitle(paste("Statistical constistency given", 10*p ,"% missing occurance")))
+#box <-  setNames(lapply(1:length(miss.mech.vec), function(m)
+#        lapply(seq_along(miss.prob), function(p)
+#        ggplot(boxplotdata[[m]][[p]], aes(x=Method, y=ball_d)) +
+#        geom_boxplot(aes(group=Method, color = Method)) +
+#        xlab("") +
+#        theme(legend.position = "bottom") +
+#        ylab("Ball divergence"))), nm = miss.mech.vec) 
+#        #ggtitle(paste("Statistical constistency given", 10*p ,"% missing occurance")))
 
-plot_grid(box[[1]][[1]], box[[1]][[2]], box[[1]][[3]],
-          box[[2]][[1]], box[[2]][[2]], box[[2]][[3]],
-          box[[3]][[1]], box[[3]][[2]], box[[3]][[3]],
-          labels = c("10% missing", "20% missing", "30% missing"), ncol = 3, nrow = 3)
+#plot_grid(box[[1]][[1]], box[[1]][[2]], box[[1]][[3]],
+#          box[[2]][[1]], box[[2]][[2]], box[[2]][[3]],
+#          box[[3]][[1]], box[[3]][[2]], box[[3]][[3]],
+#          labels = c("10% missing", "20% missing", "30% missing"), ncol = 3, nrow = 3)
 
 
 
