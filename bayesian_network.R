@@ -535,24 +535,50 @@ lvl1.misclass <- make.lvl1.misclass.table()
 
 ##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
 
-lvl2.bn <- bd.full(data=bn.imp)
-lvl2.bnrc <- bd.full(data=bnrc)
-lvl2.mice <- bd.full(data=mice.imp.complete)
+#lvl2.bn <- bd.full(data=bn.imp)
+#lvl2.bnrc <- bd.full(data=bnrc)
+#lvl2.mice <- bd.full(data=mice.imp.complete)
+
+
+
+lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[m]][[p]][[l]], 
+     dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+        nm= names(miss.prob))), nm = miss.mech.vec)
+
+lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc[[m]][[p]][[l]], 
+      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+          nm= names(miss.prob))), nm = miss.mech.vec)
+
+lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(1:k, function(l) bd.test(x = dplyr::select(mice.imp.complete[[m]][[p]][[l]], 
+     dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+        nm= names(miss.prob))), nm = miss.mech.vec)
 
 save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
 save(lvl2.bnrc,file = paste(mypath,"bd_bnrc.RDA", sep = "/"))
 save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
 
 
+
+
+
 #### plotting mean over repetitions:
 
-bnrc.mean <- setNames(lapply(1:length(miss.mech.vec), function(m)
-              as.data.frame(sapply(seq_along(miss.prob), function(p)
-                sapply(1:k, function(i)
-                  mean(lvl2.bnrc[[m]][[p]][1:i]))))),nm=miss.mech.vec)
-for (m in 1:length(miss.mech.vec)){
-  colnames(bnrc.mean[[m]]) <- names(miss.prob)
-}
+#bnrc.mean <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#              as.data.frame(sapply(seq_along(miss.prob), function(p)
+#                sapply(1:k, function(i)
+#                  mean(lvl2.bnrc[[m]][[p]][1:i]))))),nm=miss.mech.vec)
+#for (m in 1:length(miss.mech.vec)){
+#  colnames(bnrc.mean[[m]]) <- names(miss.prob)
+#}
 
 bn.mean <- summ.reps(data = lvl2.bn)
 bnrc.mean <- summ.reps(data = lvl2.bnrc)
