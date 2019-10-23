@@ -267,7 +267,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 
 
-k <- 500
+k <- 2
 set.seed(1234)
 numCores <- detectCores() -3
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
@@ -310,7 +310,7 @@ mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
 
 save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
 
-lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
+dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
 
 mi.structure.rev <- mi.structure
@@ -335,14 +335,9 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
               mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
                 dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
-
-
-<<<<<<< HEAD
 #save(bn.imp, file = "bnimp.RDA")
-=======
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
->>>>>>> 4c15c620ee5ec232172b11e5fb0aa53b6a15f7e6
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(mclapply(mc.cores = numCores,seq_along(miss.prob), function(p) 
             mclapply(mc.cores = numCores, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
