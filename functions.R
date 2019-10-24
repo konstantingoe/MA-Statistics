@@ -312,7 +312,7 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
     }
     listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
       setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=names(dat_mi))
-    test <- mclapply(mc.cores = numCores ,1:nrow(dat_mi), function(r) 
+    test <- lapply(1:nrow(dat_mi), function(r) 
       tryCatch({
         bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
       }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
@@ -341,7 +341,7 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
       colnames(dat_mi) <- mb[[i]]
       listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
         setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=1:nrow(dat_mi))
-      test <- mclapply(mc.cores = numCores,1:nrow(dat_mi), function(r) 
+      test <- lapply(1:nrow(dat_mi), function(r) 
         tryCatch({
           bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
         }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))

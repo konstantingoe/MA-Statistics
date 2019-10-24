@@ -302,13 +302,14 @@ for (m in 1:length(miss.mech.vec)){
 # superior is the bad guy!!!! 
 
 #mi.multiple.imp[[6]][,discrete.imp.vars] <- NULL 
-mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                  setNames(mclapply(mc.cores = numCores ,seq_along(miss.prob), function(p) 
-                    mclapply(1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
-                          fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T),
-                            mc.cores = numCores)), nm= names(miss.prob))), nm = miss.mech.vec)
+#mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#                  setNames(mclapply(mc.cores = numCores ,seq_along(miss.prob), function(p) 
+#                    mclapply(1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
+#                          fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T),
+#                            mc.cores = numCores)), nm= names(miss.prob))), nm = miss.mech.vec)
 
-save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+#save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+load(paste(mypath, "structure.RDA", sep = "/"))
 
 dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -339,7 +340,7 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
-          setNames(mclapply(mc.cores = numCores,seq_along(miss.prob), function(p) 
+          setNames(lapply(seq_along(miss.prob), function(p) 
             mclapply(mc.cores = numCores, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
                 nm= names(miss.prob))), nm = miss.mech.vec)
