@@ -296,6 +296,8 @@ for (m in 1:length(miss.mech.vec)){
     } 
   }
 }  
+
+save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
   
 #mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
 #                                fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
