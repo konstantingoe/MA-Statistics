@@ -10,6 +10,13 @@ mc.se <- function(x,k=k){
   return(c(bias_mcse,std_bias))
 }
 
+skip.streams <- function(n) {
+  x <- .Random.seed
+  for (i in seq_len(n))
+    x <- nextRNGStream(x)
+  assign('.Random.seed', x, pos=.GlobalEnv)
+}
+
 
 
 normalize.log <- function(x){

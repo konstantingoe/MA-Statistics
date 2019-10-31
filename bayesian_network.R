@@ -265,10 +265,10 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
                           ##### Simulation ####
 #### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
 
-
+RNGkind("L'Ecuyer-CMRG")
+set.seed(1234)
 
 k <- 500
-set.seed(1234)
 numCores <- detectCores() -3
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
@@ -278,6 +278,7 @@ miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
                         mclapply(mc.cores = numCores, 1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
+skip.streams(numCores)
 
 mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
                     setNames(lapply(seq_along(miss.prob), function(p) 
@@ -310,6 +311,7 @@ mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
 
 save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
 
+skip.streams(numCores)
 
 dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -330,6 +332,7 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
         setNames(lapply(seq_along(miss.prob), function(p) 
           mclapply(mc.cores = numCores ,1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
+skip.streams(numCores)
 
 bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
             setNames(lapply(seq_along(miss.prob), function(p) 
@@ -338,6 +341,7 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
 
 #save(bn.imp, file = "bnimp.RDA")
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
+skip.streams(numCores)
 
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
@@ -346,6 +350,7 @@ bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
                 nm= names(miss.prob))), nm = miss.mech.vec)
 
 save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
+skip.streams(numCores)
 
 #### Algorithm done
 
@@ -457,6 +462,7 @@ mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
                 mclapply(mc.cores = numCores, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1))),
                   nm=names(miss.prob))), nm=miss.mech.vec)
 
+skip.streams(numCores)
 
 
 mice.imp.complete <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.vec), function(m)
@@ -540,6 +546,7 @@ lvl1.misclass <- make.lvl1.misclass.table()
 #lvl2.bnrc <- bd.full(data=bnrc)
 #lvl2.mice <- bd.full(data=mice.imp.complete)
 
+skip.streams(numCores)
 
 
 lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -549,12 +556,16 @@ lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
         nm= names(miss.prob))), nm = miss.mech.vec)
 
+skip.streams(numCores)
+
 lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
     sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc[[m]][[p]][[l]], 
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
          dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
           nm= names(miss.prob))), nm = miss.mech.vec)
+
+skip.streams(numCores)
 
 lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
