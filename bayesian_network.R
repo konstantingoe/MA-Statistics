@@ -277,9 +277,7 @@ miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 
 mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
-                        mclapply(mc.cores = numCores, 1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
-skip.streams(numCores)
-
+                        lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
 mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
                     setNames(lapply(seq_along(miss.prob), function(p) 
                       lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
@@ -296,8 +294,6 @@ for (m in 1:length(miss.mech.vec)){
     } 
   }
 }  
-
-save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
   
 #mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
 #                                fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
@@ -312,8 +308,6 @@ mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
                             mc.cores = numCores)), nm= names(miss.prob))), nm = miss.mech.vec)
 
 save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
-
-skip.streams(numCores)
 
 dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -334,7 +328,6 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
         setNames(lapply(seq_along(miss.prob), function(p) 
           mclapply(mc.cores = numCores ,1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
-skip.streams(numCores)
 
 bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
             setNames(lapply(seq_along(miss.prob), function(p) 
@@ -343,7 +336,6 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
 
 #save(bn.imp, file = "bnimp.RDA")
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
-skip.streams(numCores)
 
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
@@ -464,9 +456,6 @@ mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
                 mclapply(mc.cores = numCores, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1))),
                   nm=names(miss.prob))), nm=miss.mech.vec)
 
-skip.streams(numCores)
-
-
 mice.imp.complete <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.vec), function(m)
                       setNames(mclapply(mc.cores = numCores, seq_along(miss.prob), function(p) 
                         lapply(1:k, function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
@@ -478,6 +467,7 @@ save(mice.imp, file = paste(mypath,"mice.RDA", sep = "/"))
 #### trying to solve the nearest neighbor problem... post processing?
 #Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
 # the way would be to define a "custom made" pmm function where structural zeroes are not considered in the pmm algorithm!
+skip.streams(numCores)
 
 
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
@@ -548,8 +538,6 @@ lvl1.misclass <- make.lvl1.misclass.table()
 #lvl2.bnrc <- bd.full(data=bnrc)
 #lvl2.mice <- bd.full(data=mice.imp.complete)
 
-skip.streams(numCores)
-
 
 lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
@@ -558,7 +546,6 @@ lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
         nm= names(miss.prob))), nm = miss.mech.vec)
 
-skip.streams(numCores)
 
 lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
@@ -567,7 +554,6 @@ lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
          dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
           nm= names(miss.prob))), nm = miss.mech.vec)
 
-skip.streams(numCores)
 
 lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
