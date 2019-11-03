@@ -267,8 +267,8 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 set.seed(1234)
 
-k <- 20
-numCores <- detectCores() -3
+k <- 500
+numCores <- detectCores() -2
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
@@ -280,6 +280,7 @@ mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
 mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
                     setNames(lapply(seq_along(miss.prob), function(p) 
                       lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
+
 
 
 for (m in 1:length(miss.mech.vec)){
@@ -295,6 +296,8 @@ for (m in 1:length(miss.mech.vec)){
   }
 }  
   
+save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
+
 #mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
 #                                fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
 
@@ -329,6 +332,8 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
           mclapply(mc.cores = numCores ,1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
 
+save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
+
 bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
             setNames(lapply(seq_along(miss.prob), function(p) 
               mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
@@ -344,7 +349,6 @@ bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
                 nm= names(miss.prob))), nm = miss.mech.vec)
 
 save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
-skip.streams(numCores)
 
 #### Algorithm done
 
@@ -463,11 +467,11 @@ mice.imp.complete <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.v
 
 
 save(mice.imp, file = paste(mypath,"mice.RDA", sep = "/"))
+save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 
 #### trying to solve the nearest neighbor problem... post processing?
 #Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
 # the way would be to define a "custom made" pmm function where structural zeroes are not considered in the pmm algorithm!
-skip.streams(numCores)
 
 
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
