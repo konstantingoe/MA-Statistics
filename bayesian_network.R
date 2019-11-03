@@ -265,10 +265,9 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
                           ##### Simulation ####
 #### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
 
-RNGkind("L'Ecuyer-CMRG")
 set.seed(1234)
 
-k <- 500
+k <- 20
 numCores <- detectCores() -3
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
@@ -281,6 +280,7 @@ mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
 mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
                     setNames(lapply(seq_along(miss.prob), function(p) 
                       lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
+
 
 for (m in 1:length(miss.mech.vec)){
   for (p in 1:length(miss.prob)){
