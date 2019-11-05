@@ -50,6 +50,7 @@ pacman::p_load(
   splines2,
   reshape2,
   deal,
+  future.apply,
   # those beneath always load last
   ggplot2,
   tidyverse)
