@@ -267,7 +267,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 set.seed(1234)
 
-k <- 500
+k <- 100
 numCores <- detectCores() -2
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
@@ -344,11 +344,12 @@ save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 #              mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
 #                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
-bn.imp1 <- mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[1]][[l]], dag = mi.structure.rev[[3]][[1]][[l]]$dag, dat=mi.multiple.imp[[3]][[1]][[l]]))
+plan(multiprocess, workers = numCores)
+bn.imp1 <- future_lapply(future.seed = T, mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[1]][[l]], dag = mi.structure.rev[[3]][[1]][[l]]$dag, dat=mi.multiple.imp[[3]][[1]][[l]]))
 print("first bnimp done")
-bn.imp1 <- mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[2]][[l]], dag = mi.structure.rev[[3]][[2]][[l]]$dag, dat=mi.multiple.imp[[3]][[2]][[l]]))
+bn.imp1 <- future_lapply(future.seed = T, mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[2]][[l]], dag = mi.structure.rev[[3]][[2]][[l]]$dag, dat=mi.multiple.imp[[3]][[2]][[l]]))
 print("second bnimp done")
-bn.imp1 <- mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[3]][[l]], dag = mi.structure.rev[[3]][[3]][[l]]$dag, dat=mi.multiple.imp[[3]][[3]][[l]]))
+bn.imp1 <- future_lapply(future.seed = T, mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[3]][[l]], dag = mi.structure.rev[[3]][[3]][[l]]$dag, dat=mi.multiple.imp[[3]][[3]][[l]]))
 print("third bnimp done")
 
 bn.imp <- list(".1" = bn.imp1, ".2" = bn.imp2, ".3" = bn.imp3)
