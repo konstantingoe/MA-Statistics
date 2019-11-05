@@ -3,10 +3,10 @@
 ##### Testing MAR ######
 rm(list = ls())
 source("packages.R")
-source(".path.R")
+#source(".path.R")
 source("functions.R")
-#mypath<- "/soep/kgoebler/data"
-mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
+mypath<- "/soep/kgoebler/data"
+mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
 
 #potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
 # first impute filter information and then based on these impute wealth components:
@@ -339,14 +339,21 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
 
 save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 
-bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-            setNames(lapply(seq_along(miss.prob), function(p) 
-              mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
+#bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#            setNames(lapply(seq_along(miss.prob), function(p) 
+#              mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+#                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
+bn.imp1 <- mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[1]][[l]], dag = mi.structure.rev[[3]][[1]][[l]]$dag, dat=mi.multiple.imp[[3]][[1]][[l]]))
+print("first bnimp done")
+bn.imp1 <- mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[2]][[l]], dag = mi.structure.rev[[3]][[2]][[l]]$dag, dat=mi.multiple.imp[[3]][[2]][[l]]))
+print("second bnimp done")
+bn.imp1 <- mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[3]][[l]], dag = mi.structure.rev[[3]][[3]][[l]]$dag, dat=mi.multiple.imp[[3]][[3]][[l]]))
+print("third bnimp done")
 
+bn.imp <- list(".1" = bn.imp1, ".2" = bn.imp2, ".3" = bn.imp3)
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
-
+XXX
 
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
