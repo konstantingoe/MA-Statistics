@@ -3,10 +3,10 @@
 ##### Testing MAR ######
 rm(list = ls())
 source("packages.R")
-#source(".path.R")
+source(".path.R")
 source("functions.R")
-mypath<- "/soep/kgoebler/data"
-mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
+#mypath<- "/soep/kgoebler/data"
+mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
 
 #potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
 # first impute filter information and then based on these impute wealth components:
@@ -267,7 +267,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 set.seed(1234)
 
-k <- 100
+k <- 500
 numCores <- detectCores() -2
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
@@ -296,7 +296,7 @@ for (m in 1:length(miss.mech.vec)){
   }
 }  
   
-#save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
+save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
 
 
 #load("data.RDA")
@@ -309,39 +309,13 @@ for (m in 1:length(miss.mech.vec)){
 #load("micedata.RDA")
 
 
-#bad <- sapply(bnrc$MNAR$`0.1`, inherits, what = "try-error")
-#null <- sapply(bnrc$MNAR$`0.3`, is.null)
-#table(null)
-
-
-#error testing:
-
-
-#testing <- setNames(lapply(2:2, function(m)
-#  setNames(lapply(2:2, function(p) 
-#    lapply(30:30, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-#      dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob)[2])),nm=miss.mech.vec[2])
-
-#testing2 <- setNames(lapply(3:3, function(m)
-#              setNames(lapply(3:3, function(p) 
-#                 mclapply(mc.cores = 1, 4:4, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
-#                  data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
-#                    nm= names(miss.prob)[3])), nm = miss.mech.vec[3])
-
-
-#mi.structure <- structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
-#                                fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 5, return.all = T) 
-
-# superior is the bad guy!!!! 
-
-#mi.multiple.imp[[6]][,discrete.imp.vars] <- NULL 
 mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
                   setNames(lapply(seq_along(miss.prob), function(p) 
                     mclapply(1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T),
                             mc.cores = numCores)), nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
 
 dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -363,22 +337,15 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
           mclapply(mc.cores = numCores ,1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
+save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 
-bn.imp <- setNames(lapply(3:3, function(m)
-            setNames(lapply(3:3, function(p) 
+bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+            setNames(lapply(seq_along(miss.prob), function(p) 
               mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob)[3])),nm=miss.mech.vec[3])
-
-#bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#            setNames(lapply(seq_along(miss.prob), function(p) 
-#              mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-#                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
+                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
 
-#save(bn.imp, file = "bnimp.RDA")
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
-XXX
 
 
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
