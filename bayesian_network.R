@@ -267,7 +267,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 set.seed(1234)
 
-k <- 10
+k <- 100
 numCores <- detectCores() -2
 plan(multiprocess, workers = numCores)
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
@@ -297,7 +297,7 @@ for (m in 1:length(miss.mech.vec)){
   }
 }  
   
-#save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
+save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
 
 
 #load("data.RDA")
@@ -316,7 +316,7 @@ mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
                            nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
 
 dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -338,27 +338,15 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
           future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
+save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 
 bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
             setNames(lapply(seq_along(miss.prob), function(p) 
               future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
                 dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
-
-#bn.imp1 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[1]][[l]], dag = mi.structure.rev[[3]][[1]][[l]]$dag, dat=mi.multiple.imp[[3]][[1]][[l]]))
-#print("first bnimp done")
-#plan(multiprocess, workers = numCores)
-#bn.imp2 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[2]][[l]], dag = mi.structure.rev[[3]][[2]][[l]]$dag, dat=mi.multiple.imp[[3]][[2]][[l]]))
-#print("second bnimp done")
-#plan(multiprocess, workers = numCores)
-#bn.imp3 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[3]][[l]], dag = mi.structure.rev[[3]][[3]][[l]]$dag, dat=mi.multiple.imp[[3]][[3]][[l]]))
-#print("third bnimp done")
-
-#bn.imp <- list(".1" = bn.imp1, ".2" = bn.imp2, ".3" = bn.imp3)
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
-xxx
-plan(multiprocess, workers = numCores)
+
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
             future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
@@ -474,7 +462,7 @@ post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]),
 
 mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
               setNames(lapply(seq_along(miss.prob), function(p) 
-                mclapply(mc.cores = numCores, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1))),
+                future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1))),
                   nm=names(miss.prob))), nm=miss.mech.vec)
 
 mice.imp.complete <- setNames(mclapply(mc.cores = numCores, 1:length(miss.mech.vec), function(m)
