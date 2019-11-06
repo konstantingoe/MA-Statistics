@@ -269,6 +269,7 @@ set.seed(1234)
 
 k <- 10
 numCores <- detectCores() -2
+plan(multiprocess, workers = numCores)
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
@@ -311,9 +312,9 @@ for (m in 1:length(miss.mech.vec)){
 
 mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
                   setNames(lapply(seq_along(miss.prob), function(p) 
-                    mclapply(1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
-                          fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T),
-                            mc.cores = numCores)), nm= names(miss.prob))), nm = miss.mech.vec)
+                    future_lapply(future.seed = T, 1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
+                          fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
+                           nm= names(miss.prob))), nm = miss.mech.vec)
 
 #save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
 
@@ -334,25 +335,27 @@ mi.structure.rev <- mi.structure
 
 bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
         setNames(lapply(seq_along(miss.prob), function(p) 
-          mclapply(mc.cores = numCores ,1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
+          future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
 
-save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
+#save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 
-#bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#            setNames(lapply(seq_along(miss.prob), function(p) 
-#              mclapply(mc.cores = numCores, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-#                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
+bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+            setNames(lapply(seq_along(miss.prob), function(p) 
+              future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
-plan(multiprocess, workers = numCores)
-bn.imp1 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[1]][[l]], dag = mi.structure.rev[[3]][[1]][[l]]$dag, dat=mi.multiple.imp[[3]][[1]][[l]]))
-print("first bnimp done")
-bn.imp1 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[2]][[l]], dag = mi.structure.rev[[3]][[2]][[l]]$dag, dat=mi.multiple.imp[[3]][[2]][[l]]))
-print("second bnimp done")
-bn.imp1 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[3]][[l]], dag = mi.structure.rev[[3]][[3]][[l]]$dag, dat=mi.multiple.imp[[3]][[3]][[l]]))
-print("third bnimp done")
 
-bn.imp <- list(".1" = bn.imp1, ".2" = bn.imp2, ".3" = bn.imp3)
+#bn.imp1 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[1]][[l]], dag = mi.structure.rev[[3]][[1]][[l]]$dag, dat=mi.multiple.imp[[3]][[1]][[l]]))
+#print("first bnimp done")
+#plan(multiprocess, workers = numCores)
+#bn.imp2 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[2]][[l]], dag = mi.structure.rev[[3]][[2]][[l]]$dag, dat=mi.multiple.imp[[3]][[2]][[l]]))
+#print("second bnimp done")
+#plan(multiprocess, workers = numCores)
+#bn.imp3 <- future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[3]][[3]][[l]], dag = mi.structure.rev[[3]][[3]][[l]]$dag, dat=mi.multiple.imp[[3]][[3]][[l]]))
+#print("third bnimp done")
+
+#bn.imp <- list(".1" = bn.imp1, ".2" = bn.imp2, ".3" = bn.imp3)
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 xxx
 plan(multiprocess, workers = numCores)
