@@ -346,7 +346,7 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
                 dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
-
+xxx
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
             future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 

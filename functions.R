@@ -317,8 +317,8 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
         dat_mi[is.na(dat_mi[,mb[[i]][m]]),mb[[i]][m]] <- imp.mean[[mb[[i]][m]]]
       }
     }
-    listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
-      setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=names(dat_mi))
+    listtest <- lapply(1:nrow(dat_mi), function(r)
+      setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi)))
     test <- lapply(1:nrow(dat_mi), function(r) 
       tryCatch({
         bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
