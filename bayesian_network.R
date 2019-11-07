@@ -341,9 +341,14 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
 save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 
 bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-            setNames(lapply(seq_along(miss.prob), function(p) 
-              future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    lapply(1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+                                                                   dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
+
+#bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#            setNames(lapply(seq_along(miss.prob), function(p) 
+#              future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+#                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 xxx

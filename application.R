@@ -239,14 +239,14 @@ numCores <- detectCores() -1
 plan(multiprocess, workers = numCores)
 
 mi.structure <- bnlearn::structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc",
-      fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 20, return.all = T, debug = T)
+      fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T, debug = F)
 
 (bnplot <- ggnet2(mi.structure$dag$arcs,
        arrow.size = 9, arrow.gap = 0.025, label = T))
 #ggsave("truthstruct.pdf", plot = bnplot)
 
 bn <-  bn.fit(mi.structure$dag, mi.structure$imputed, method = "mle")
-bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 150, returnfull = T)
+bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 50, returnfull = T)
 
 final.log <- bnrc$finalData
 
