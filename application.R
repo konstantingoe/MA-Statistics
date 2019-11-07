@@ -247,30 +247,40 @@ mi.structure <- bnlearn::structural.em(mi.multiple.imp[,names(mi.multiple.imp) !
 
 bn <-  bn.fit(mi.structure$dag, mi.structure$imputed, method = "mle")
 bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 50, returnfull = T)
+bnimp <- bn.parents.imp(bn=bn, dag=mi.structure$dag, dat = mi.multiple.imp)
 
 final.log <- bnrc$finalData
 
+conditions <- c(filters[1:12], "jobduration", "workinghours", "wage_gross_m", "wage_net_m", "saving", "inherit_filter") 
+
 for (i in 1:length(lnrecode.vars)){
-final.log[,lnrecode.vars] <-  ifelse(mi.multiple.imp[,lnrecode.vars[i]] == -99, 
-                                   -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
-                                   mi.multiple.imp[,lnrecode.vars[i]])
+final.log[,rerecode.vars[i]] <-  ifelse(multiple.imp[,rerecode.vars[i]] == 0 | is.na(multiple.imp[,rerecode.vars[i]]), (sd(multiple.imp[,rerecode.vars[i]] + 1, na.rm = T)^final.log[,lnrecode.vars[i]]) * mean(multiple.imp[,rerecode.vars[i]] + 1, na.rm = T),
+                                        (sd(multiple.imp[,rerecode.vars[i]], na.rm = T)^final.log[,lnrecode.vars[i]]) * mean(multiple.imp[,rerecode.vars[i]], na.rm = T)) 
 }
+
+for (i in 1:length(rerecode.vars)){
+final.log[,rerecode.vars[i]] <-  ifelse(multiple.imp[,conditions[i]] == 0 & !is.na(multiple.imp[,conditions[i]]), -2, final.log[,rerecode.vars[i]])
+}
+
+gg_miss_var(final.log)
+
+#compare <- as.data.frame(cbind(final.log$residence_value, multiple.imp$residence_value))
+#compare
+
 
 ### recode back to original scale
 
 # first those ln without conditions:
-test <- final.log
-test$hhnetto <- ifelse(multiple.imp$hhnetto == 0 | is.na(multiple.imp$hhnetto), (sd(multiple.imp$hhnetto + 1, na.rm = T)^test$lnhhnetto) * mean(multiple.imp$hhnetto + 1, na.rm = T),
-                          (sd(multiple.imp$hhnetto, na.rm = T)^test$lnhhnetto) * mean(multiple.imp$hhnetto, na.rm = T)) 
 
-test$sqmtrs <- ifelse(multiple.imp$sqmtrs == 0 | is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs + 1, na.rm = T)^test$lnsqmtrs) * mean(multiple.imp$sqmtrs + 1, na.rm = T),
-                       (sd(multiple.imp$sqmtrs, na.rm = T)^test$lnsqmtrs) * mean(multiple.imp$sqmtrs, na.rm = T)) 
+final.log$hhnetto <- ifelse(multiple.imp$hhnetto == 0 | is.na(multiple.imp$hhnetto), (sd(multiple.imp$hhnetto + 1, na.rm = T)^final.log$lnhhnetto) * mean(multiple.imp$hhnetto + 1, na.rm = T),
+                          (sd(multiple.imp$hhnetto, na.rm = T)^final.log$lnhhnetto) * mean(multiple.imp$hhnetto, na.rm = T)) 
 
-# now with conditions:
-test[,rerecode.vars[1]] <- ifelse(multiple.imp[,rerecode.vars[1]] ifelse(multiple.imp$sqmtrs == 0 | is.na(multiple.imp$sqmtrs))
+final.log$sqmtrs <- ifelse(multiple.imp$sqmtrs == 0 | is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs + 1, na.rm = T)^final.log$lnsqmtrs) * mean(multiple.imp$sqmtrs + 1, na.rm = T),
+                       (sd(multiple.imp$sqmtrs, na.rm = T)^final.log$lnsqmtrs) * mean(multiple.imp$sqmtrs, na.rm = T)) 
 
-  
-save(bnrc$finalData, file = "topw_imp.RDA")
+final.log[,wealth.limits] <- NULL
+
+save(final.log, file = "topw_imp.RDA")
 write.dta(bnrc$finalData, file = "topw_imp.dta")
 
 

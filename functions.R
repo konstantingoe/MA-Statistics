@@ -282,13 +282,26 @@ bn.parents.imp <- function(bn=bn, dag=dag, dat=dat){
           }
         }
       }
-      testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))
+      if (sum(sapply(test, is.null))>0){
+        test.null <- which(sapply(test, is.null))
+        for (t in 1:length(test.null)){
+          test[test.null[t]] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
+        }
+      } else if (any(sum(sapply(test, is.nan)>0))){
+        test.nan <- which(sapply(1:length(test), function(k) sum(is.nan(test[[k]])))>0)
+        for (t in 1:length(test.nan)){
+          test[test.nan[t]] <- try(bnlearn::cpdist(bn, nodes = names(imp.reliability)[k], evidence = T, method = "lw"))
+        }
+      }
+      testsample <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]]), 1))
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     }
     data[names(imp.reliability)[k]] <- testsample
     dat[,names(imp.reliability[k])][is.na(dat[,names(imp.reliability[k])])] <- data[,names(imp.reliability)[k]]
   }
   return(dat)
 }
+
 
 ############################################################################################################ 
 ############################################################################################################ 
@@ -304,7 +317,21 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
   reliability <- sort(reliability[reliability > 0])
   
   # retrieve vector of means for reliability variables:
-  imp.mean <- setNames(lapply(dat[,names(reliability)], mean_or_mode), nm=names(reliability))
+  imp.m <- list()
+  naming <- NULL
+  for (i in 1:length(reliability)){
+    if (is.factor(dat[,names(reliability)[i]])){
+      y <- dat[dat[,names(reliability)[i]] != "-2",names(reliability)[i]]
+      imp.m[[i]] <- names(sort(-table(y)))[1]
+      naming[i] <- names(reliability)[i]
+    } else {
+      y <- dat[dat[,names(reliability)[i]] != min(dat[,names(reliability)[i]], na.rm = T),names(reliability)[i]]
+      imp.m[[i]] <- mean(y, na.rm = T)
+      naming[i] <- names(reliability)[i]
+    }
+  }  
+  names(imp.m) <- naming
+  #imp.mean <- setNames(lapply(dat[,names(reliability)], mean_or_mode), nm=names(reliability))
   # start chain
   mb <- setNames(lapply(1:length(reliability), function(k) bnlearn::mb(bn,names(reliability[k]))), nm=names(reliability))
   
@@ -314,7 +341,7 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
     colnames(dat_mi) <- mb[[i]]
     if (sum(is.na(dat_mi)) > 0){
       for (m in 1:ncol(dat_mi)){  
-        dat_mi[is.na(dat_mi[,mb[[i]][m]]),mb[[i]][m]] <- imp.mean[[mb[[i]][m]]]
+        dat_mi[is.na(dat_mi[,mb[[i]][m]]),mb[[i]][m]] <- imp.m[mb[[i]][m]]
       }
     }
     listtest <- lapply(1:nrow(dat_mi), function(r)
@@ -328,8 +355,14 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
       for (t in 1:length(test.null)){
         test[[test.null[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
       }
+    } else if (any(sapply(1:length(test), function(k) sum(is.nan(test[[k]][[1]])))>0)){
+      test.nan <- which(sapply(1:length(test), function(k) sum(is.nan(test[[k]][[1]])))>0)
+      for (t in 1:length(test.nan)){
+        test[[test.nan[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
+      }
     }
-    testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]]), 1))
+    try <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     dat_mi[names(reliability)[i]] <- testsample
     dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
   }
@@ -352,13 +385,20 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
         tryCatch({
           bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
         }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
+      
       if (sum(sapply(test, is.null))>0){
         test.null <- which(sapply(test, is.null))
         for (t in 1:length(test.null)){
-          test[[test.null[t]]] <- dat.store[[count]][is.na(dat[,names(reliability[i])]),names(reliability[i])][test.null[t]] 
+          test[[test.null[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
+        }
+      } else if (any(sapply(1:length(test), function(k) sum(is.nan(test[[k]][[1]])))>0)){
+        test.nan <- which(sapply(1:length(test), function(k) sum(is.nan(test[[k]][[1]])))>0)
+        for (t in 1:length(test.nan)){
+          test[[test.nan[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
         }
       }
-      testsample <- sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]]), 1))
+      try <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
       dat_mi[names(reliability)[i]] <- testsample
       dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
     }
@@ -372,7 +412,6 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
     return(datalist)
   }
 }
-
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#
