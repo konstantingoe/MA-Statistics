@@ -7,7 +7,7 @@ source(".path.R")
 source("functions.R")
 #mypath<- "/soep/kgoebler/data"
 mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
-set.seed(1234)
+set.seed(12)
 
 #potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
 # first impute filter information and then based on these impute wealth components:
@@ -246,39 +246,35 @@ mi.structure <- bnlearn::structural.em(mi.multiple.imp[,names(mi.multiple.imp) !
 #ggsave("truthstruct.pdf", plot = bnplot)
 
 bn <-  bn.fit(mi.structure$dag, mi.structure$imputed, method = "mle")
-bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 50, returnfull = T)
+
+bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 150, returnfull = T)
+
 bnimp <- bn.parents.imp(bn=bn, dag=mi.structure$dag, dat = mi.multiple.imp)
 
 final.log <- bnrc$finalData
 
+#### rerecode of log vars
+
 conditions <- c(filters[1:12], "jobduration", "workinghours", "wage_gross_m", "wage_net_m", "saving", "inherit_filter") 
 
 for (i in 1:length(lnrecode.vars)){
-final.log[,rerecode.vars[i]] <-  ifelse(multiple.imp[,rerecode.vars[i]] == 0 | is.na(multiple.imp[,rerecode.vars[i]]), (sd(multiple.imp[,rerecode.vars[i]] + 1, na.rm = T)^final.log[,lnrecode.vars[i]]) * mean(multiple.imp[,rerecode.vars[i]] + 1, na.rm = T),
-                                        (sd(multiple.imp[,rerecode.vars[i]], na.rm = T)^final.log[,lnrecode.vars[i]]) * mean(multiple.imp[,rerecode.vars[i]], na.rm = T)) 
+  final.log[,rerecode.vars[i]] <-  ifelse(is.na(multiple.imp[,rerecode.vars[i]]), (sd(multiple.imp[,rerecode.vars[i]], na.rm = T)^final.log[,lnrecode.vars[i]]) * mean(multiple.imp[,rerecode.vars[i]], na.rm = T), multiple.imp[,rerecode.vars[i]])
 }
 
 for (i in 1:length(rerecode.vars)){
 final.log[,rerecode.vars[i]] <-  ifelse(multiple.imp[,conditions[i]] == 0 & !is.na(multiple.imp[,conditions[i]]), -2, final.log[,rerecode.vars[i]])
 }
 
-gg_miss_var(final.log)
+# those ln without conditions:
 
-#compare <- as.data.frame(cbind(final.log$residence_value, multiple.imp$residence_value))
-#compare
+final.log$hhnetto <- ifelse(is.na(multiple.imp$hhnetto), (sd(multiple.imp$hhnetto, na.rm = T)^final.log$lnhhnetto) * mean(multiple.imp$hhnetto, na.rm = T),
+                            multiple.imp$hhnetto)
 
+final.log$sqmtrs <- ifelse(is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs, na.rm = T)^final.log$lnsqmtrs) * mean(multiple.imp$sqmtrs, na.rm = T),
+                           multiple.imp$sqmtrs) 
 
-### recode back to original scale
+final.log[,c(wealth.limits, lnrecode.vars, "lnhhnetto", "lnsqmtrs")] <- NULL
 
-# first those ln without conditions:
-
-final.log$hhnetto <- ifelse(multiple.imp$hhnetto == 0 | is.na(multiple.imp$hhnetto), (sd(multiple.imp$hhnetto + 1, na.rm = T)^final.log$lnhhnetto) * mean(multiple.imp$hhnetto + 1, na.rm = T),
-                          (sd(multiple.imp$hhnetto, na.rm = T)^final.log$lnhhnetto) * mean(multiple.imp$hhnetto, na.rm = T)) 
-
-final.log$sqmtrs <- ifelse(multiple.imp$sqmtrs == 0 | is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs + 1, na.rm = T)^final.log$lnsqmtrs) * mean(multiple.imp$sqmtrs + 1, na.rm = T),
-                       (sd(multiple.imp$sqmtrs, na.rm = T)^final.log$lnsqmtrs) * mean(multiple.imp$sqmtrs, na.rm = T)) 
-
-final.log[,wealth.limits] <- NULL
 
 save(final.log, file = "topw_imp.RDA")
 write.dta(bnrc$finalData, file = "topw_imp.dta")
