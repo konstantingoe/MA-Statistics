@@ -267,7 +267,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 set.seed(12)
 
-k <- 100
+k <- 500
 numCores <- detectCores() -2
 plan(multiprocess, workers = numCores)
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
@@ -297,7 +297,7 @@ for (m in 1:length(miss.mech.vec)){
   }
 }  
   
-#save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
+save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
 
 
 #load("data.RDA")
@@ -316,7 +316,7 @@ mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
                            nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
 
 dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
   sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -338,7 +338,7 @@ bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
           future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
            nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
+save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 print("Now things are getting serious!")
 bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
             setNames(lapply(seq_along(miss.prob), function(p) 
@@ -346,14 +346,14 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
                 dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 print("bn.imp done without errors!!!!!!!")
 save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
-xxx
 
+print("Now to the really interesting part... please let there be no errors!")
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
             future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
                 nm= names(miss.prob))), nm = miss.mech.vec)
-
+print("Hurray, no errors!")
 save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
 
 #### Algorithm done
