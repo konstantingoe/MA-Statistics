@@ -111,6 +111,7 @@ mydata <- mydata %>%
 ###### Preparing Monte Carlo Study #####
 
 ### subsetting useful variables:
+# omit "schoolingF", "schoolingM", "trainingF", "trainingM"
 
 targetvars <- c("pid", "age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma3", "wuma5", "hhgr", "orbis_wealth", "job_training", "lmstatus", "educationjob", "jobduration",
                 "selfempl", "compsize", "superior", "workinghours", "overtime", "wage_gross_m", "wage_net_m",
@@ -121,7 +122,7 @@ targetvars <- c("pid", "age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma
                 "residence_value", "other_estate_value", "assets", "building_contract",
                 "life_insure", "business_holdings", "vehicles", "tangibles",
                 "residence_debt", "other_estate_debt", "consumer_debt", "education_debt",
-                "gborn", "education", "schoolingF", "schoolingM", "trainingF", "trainingM", 
+                "gborn", "education", 
                 "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
                 "saving", "saving_value", "kidsu16")
 
@@ -137,7 +138,7 @@ filterimp <-  c("pid", "age", "sex",  "ost", "bula", "bik", "ggk", "wuma7", "wum
                 "owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
                 "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
                 "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", 
-                "gborn", "education", "schoolingF", "schoolingM", "trainingF", "trainingM", 
+                "gborn", "education", 
                 "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
                 "saving", "kidsu16")
  
@@ -147,7 +148,7 @@ filterimp2 <- c("age", "sex", "ost", "bula", "bik", "ggk", "wuma7", "wuma3", "wu
                 "owner","other_estate", "assets_filter", "building_contract_filter", "life_insure_filter",
                 "business_holdings_filter", "vehicles_filter", "tangibles_filter", "residence_debt_filter",
                 "other_estate_debt_filter", "consumer_debt_filter", "education_debt_filter", 
-                "gborn", "education", "schoolingF", "schoolingM", "trainingF", "trainingM", 
+                "gborn", "education", 
                 "nkids", "partner", "hhtyp", "livingcond", "sqmtrs", "hhnetto", 
                 "saving", "kidsu16") 
   
@@ -255,8 +256,7 @@ for (i in 1:length(lnrecode.vars)){
 }
 
 cond.vector <- c(lnrecode.vars,
-                 "lnhhnetto", "schoolingF", "schoolingM", "trainingF", 
-                 "trainingM", "compsize", "superior", "education")
+                 "lnhhnetto", "compsize", "superior", "education")
 
 x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
             "citizen", "gborn", "kidsu16", "partner", "saving")
@@ -265,7 +265,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
                           ##### Simulation ####
 #### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
 
-set.seed(1234)
+set.seed(12)
 
 k <- 100
 numCores <- detectCores() -2
@@ -345,9 +345,9 @@ bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
               future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
                 dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 print("bn.imp done without errors!!!!!!!")
+save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 xxx
 
-save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
           setNames(lapply(seq_along(miss.prob), function(p) 
             future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
@@ -408,7 +408,7 @@ names(reliability) <- rel_label$variable
 
 indepvars.all <- c("age", "sex", "ost", "bik", "wuma7", "employed", "inherit_filter",
                    "citizen", "famstd", "gborn", "kidsu16", "partner", "saving", "lnsaving", 
-                   "lninheritance", "lnhhnetto", "schoolingF", "schoolingM", "compsize",
+                   "lninheritance", "lnhhnetto", "compsize",
                    "education")
 
 miss <- names(reliability[reliability>0])
@@ -529,7 +529,7 @@ lvl1.table <- make.lvl1.table()
 
 ##### 1st. Levels of Statistical Consistency: discrete vars ####
 
-discrete.imp.vars <- c("trainingF", "trainingM", "schoolingF", "schoolingM", "education", "superior", "compsize")
+discrete.imp.vars <- c("education", "superior", "compsize")
 
 lvl1.discrete.bn <- misclass.error(data = bn.imp)
 lvl1.discrete.bnrc <- misclass.error(data = bnrc)
