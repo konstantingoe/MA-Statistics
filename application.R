@@ -274,10 +274,14 @@ final.log$sqmtrs <- ifelse(is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs, 
                            multiple.imp$sqmtrs) 
 
 final.log[,c(wealth.limits, lnrecode.vars, "lnhhnetto", "lnsqmtrs")] <- NULL
-
+library(hablar)
+final.log <- final.log %>% 
+  mutate(owner_perc = as_reliable_num(owner_perc),
+         other_estate_perc = as_reliable_num(other_estate_perc),
+         assets_perc = as_reliable_num(assets_perc))
 
 save(final.log, file = "topw_imp.RDA")
-write.dta(bnrc$finalData, file = "topw_imp.dta")
+write.dta(final.log, file = "topw_imp.dta")
 
 
 
