@@ -361,7 +361,7 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
         test[[test.nan[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
       }
     }
-    try <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
+    testsample <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
     dat_mi[names(reliability)[i]] <- testsample
     dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
@@ -397,7 +397,7 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
           test[[test.nan[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
         }
       }
-      try <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
+      testsample <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
       }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
       dat_mi[names(reliability)[i]] <- testsample
       dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
