@@ -363,8 +363,12 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
     }
     testsample <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+    if (is.null(testsample)){
+      print(paste("fatal error in initiation -- all is NULL in one of node:", names(reliability[i])))
+    } else {
     dat_mi[names(reliability)[i]] <- testsample
     dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
+    }
   }
   ### begin first iteration after initiation:
   dat.store <- list()
@@ -372,46 +376,51 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
   count <- 1
   cnt.break <- cnt.break
   repeat {
-    if (count>cnt.break){
-      break
-    }
-    for (i in 1:length(reliability)){
-      dat[,names(reliability)[i]] <- original[,names(reliability)[i]] 
-      dat_mi <- as.data.frame(dat[is.na(dat[,names(reliability[i])]),mb[[i]]])
-      colnames(dat_mi) <- mb[[i]]
-      listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
-        setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=1:nrow(dat_mi))
-      test <- lapply(1:nrow(dat_mi), function(r) 
-        tryCatch({
-          bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
-        }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
-      
-      if (sum(sapply(test, is.null))>0){
-        test.null <- which(sapply(test, is.null))
-        for (t in 1:length(test.null)){
-          test[[test.null[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
-        }
-      } else if (any(sapply(1:length(test), function(k) sum(is.nan(test[[k]][[1]])))>0)){
-        test.nan <- which(sapply(1:length(test), function(k) sum(is.nan(test[[k]][[1]])))>0)
-        for (t in 1:length(test.nan)){
-          test[[test.nan[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
-        }
+      if (count>cnt.break){
+        break
       }
-      testsample <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
-      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-      dat_mi[names(reliability)[i]] <- testsample
-      dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
+      for (i in 1:length(reliability)){
+          dat[,names(reliability)[i]] <- original[,names(reliability)[i]] 
+          dat_mi <- as.data.frame(dat[is.na(dat[,names(reliability[i])]),mb[[i]]])
+          colnames(dat_mi) <- mb[[i]]
+          listtest <- setNames(lapply(1:nrow(dat_mi), function(r)
+            setNames(lapply(1:ncol(dat_mi), function(i) dat_mi[r,i]), nm=names(dat_mi))), nm=1:nrow(dat_mi))
+          test <- lapply(1:nrow(dat_mi), function(r) 
+            tryCatch({
+              bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
+            }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
+          
+          if (sum(sapply(test, is.null))>0){
+            test.null <- which(sapply(test, is.null))
+            for (t in 1:length(test.null)){
+              test[[test.null[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
+            }
+          } else if (any(sapply(1:length(test), function(k) sum(is.nan(test[[k]][[1]])))>0)){
+            test.nan <- which(sapply(1:length(test), function(k) sum(is.nan(test[[k]][[1]])))>0)
+            for (t in 1:length(test.nan)){
+              test[[test.nan[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
+            }
+          }
+          testsample <- tryCatch({sapply(seq_along(test), function(x) sample(na.omit(test[[x]][[1]])[test[[x]][[1]] != -2], 1))
+          }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+          if (is.null(testsample)){
+            print(paste("error in evidence -- all is NULL in one of node:", names(reliability[i])))
+            dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat.store[[1]][,names(reliability[i])][is.na(dat[,names(reliability[i])])]
+          } else {
+            dat_mi[names(reliability)[i]] <- testsample
+            dat[,names(reliability[i])][is.na(dat[,names(reliability[i])])] <- dat_mi[,names(reliability)[i]]
+          }
+        }
+        count <- count + 1
+        dat.store[[count]] <- dat
     }
-    count <- count + 1
-    dat.store[[count]] <- dat
-  }
-  if (returnfull == FALSE){
-    return(dat)
-  } else if (returnfull == T) {
-    datalist <- list("finalData" = dat, "DataHistory" = dat.store)
-    return(datalist)
-  }
-}
+    if (returnfull == FALSE){
+      return(dat)
+    } else if (returnfull == T) {
+      datalist <- list("finalData" = dat, "DataHistory" = dat.store)
+      return(datalist)
+    }
+}  
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#
