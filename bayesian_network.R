@@ -487,7 +487,7 @@ save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
 # 
-# continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
+continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
 # 
 # lvl1.bn <- ks.list(data = bn.imp)
 # 
@@ -534,7 +534,7 @@ save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 # 
 # ##### 1st. Levels of Statistical Consistency: discrete vars ####
 # 
-# discrete.imp.vars <- c("education", "superior", "compsize")
+discrete.imp.vars <- c("education", "superior", "compsize")
 # 
 # lvl1.discrete.bn <- misclass.error(data = bn.imp)
 # lvl1.discrete.bnrc <- misclass.error(data = bnrc)
@@ -553,6 +553,7 @@ save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 # #lvl2.bnrc <- bd.full(data=bnrc)
 # #lvl2.mice <- bd.full(data=mice.imp.complete)
 
+print("beginning with ball test")
 
 lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
@@ -560,7 +561,7 @@ lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
         nm= names(miss.prob))), nm = miss.mech.vec)
-
+print("bnimp ball is played")
 
 lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
@@ -569,6 +570,7 @@ lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
          dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
           nm= names(miss.prob))), nm = miss.mech.vec)
 
+print("bnrc ball is in goal")
 
 lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
@@ -576,6 +578,8 @@ lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
         nm= names(miss.prob))), nm = miss.mech.vec)
+
+print("mice ball aleacta est")
 
 save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
 save(lvl2.bnrc,file = paste(mypath,"bd_bnrc.RDA", sep = "/"))
