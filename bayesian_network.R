@@ -82,7 +82,7 @@ mydata <- mydata %>%
          livingcond                      = factor(livingcond, ordered = T),
          education                       = factor(education, ordered = T),
          job_training                    = factor(job_training),
-         compsize                        = ifelse(compsize %in% c(1,2),1, ifelse(compsize %in% c(3,4),2, ifelse(compsize %in% c(5,6,7),3, NA))),
+         compsize                        = ifelse(compsize %in% c(1,2),1, ifelse(compsize %in% c(3,4),2, ifelse(compsize %in% c(5,6,7),3, ifelse(compsize == -2, -2, NA)))),
          compsize                        = factor(compsize, ordered = T),
          superior                        = factor(superior),
          overtime                        = factor(overtime, ordered = T),
@@ -587,6 +587,9 @@ save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
 
 
 
+# bntesting <- sapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[2]][[1]][[l]], 
+#                         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+#                         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
 
 
 #### plotting mean over repetitions:
