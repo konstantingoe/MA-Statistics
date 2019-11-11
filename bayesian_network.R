@@ -276,30 +276,30 @@ miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
 miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 
-# mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
-#                       setNames(lapply(seq_along(miss.prob), function(p) 
-#                         lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
-# mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
-#                     setNames(lapply(seq_along(miss.prob), function(p) 
-#                       lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
-# 
-# 
-# 
-# for (m in 1:length(miss.mech.vec)){
-#   for (p in 1:length(miss.prob)){
-#     for (l in 1:k) { 
-#       for (i in 1:length(lnrecode.vars)){
-#         mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99, 
-#                                                      -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
-#                                                      mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
-#       }
-#       mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
-#     } 
-#   }
-# }  
-#   
-# save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
-load(paste(mypath, "data.RDA", sep = "/"))
+mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
+                      setNames(lapply(seq_along(miss.prob), function(p)
+                        lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
+mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
+                    setNames(lapply(seq_along(miss.prob), function(p)
+                      lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
+
+
+
+for (m in 1:length(miss.mech.vec)){
+  for (p in 1:length(miss.prob)){
+    for (l in 1:k) {
+      for (i in 1:length(lnrecode.vars)){
+        mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99,
+                                                     -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
+                                                     mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
+      }
+      mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+    }
+  }
+}
+
+save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
+#load(paste(mypath, "data.RDA", sep = "/"))
 
 
 # load("data.RDA")
@@ -312,14 +312,14 @@ load(paste(mypath, "data.RDA", sep = "/"))
 # 
 # sapply(1:k, function(i) sum(is.na(bn.imp$MNAR$`0.3`[[i]])))
 
-# mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#                   setNames(lapply(seq_along(miss.prob), function(p) 
-#                     future_lapply(future.seed = T, 1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
-#                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
-#                            nm= names(miss.prob))), nm = miss.mech.vec)
-# 
-# save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
-load(paste(mypath, "structure.RDA", sep = "/"))
+mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
+                  setNames(lapply(seq_along(miss.prob), function(p)
+                    future_lapply(future.seed = T, 1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
+                          fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
+                           nm= names(miss.prob))), nm = miss.mech.vec)
+
+save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+#load(paste(mypath, "structure.RDA", sep = "/"))
 
 #dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
 #  sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -336,13 +336,13 @@ mi.structure.rev <- mi.structure
   }
 }
 
-# bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
-#         setNames(lapply(seq_along(miss.prob), function(p) 
-#           future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
-#            nm= names(miss.prob))), nm = miss.mech.vec)
+bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
+        setNames(lapply(seq_along(miss.prob), function(p)
+          future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))),
+           nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
-load(paste(mypath, "bn.RDA", sep = "/"))
+save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
+#load(paste(mypath, "bn.RDA", sep = "/"))
 
 print("Now things are getting serious!")
 bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -595,10 +595,10 @@ save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
 #  colnames(bnrc.mean[[m]]) <- names(miss.prob)
 #}
 
-bn.mean <- summ.reps(data = lvl2.bn)
-bnrc.mean <- summ.reps(data = lvl2.bnrc)
-mice.mean <- summ.reps(data = lvl2.mice)
-reps <- 1:k
+# bn.mean <- summ.reps(data = lvl2.bn)
+# bnrc.mean <- summ.reps(data = lvl2.bnrc)
+# mice.mean <- summ.reps(data = lvl2.mice)
+# reps <- 1:k
 
 #try boxplot:
 #boxplotdata <- setNames(lapply(1:length(miss.mech.vec), function(m)
