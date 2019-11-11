@@ -3,9 +3,9 @@
 ##### Testing MAR ######
 rm(list = ls())
 source("packages.R")
-source(".path.R")
+#source(".path.R")
 source("functions.R")
-#mypath<- "/soep/kgoebler/data"
+mypath<- "/soep/kgoebler/data"
 mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
 
 #potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
