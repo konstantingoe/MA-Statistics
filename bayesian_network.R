@@ -3,9 +3,9 @@
 ##### Testing MAR ######
 rm(list = ls())
 source("packages.R")
-#source(".path.R")
+source(".path.R")
 source("functions.R")
-mypath<- "/soep/kgoebler/data"
+#mypath<- "/soep/kgoebler/data"
 mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
 
 #potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
@@ -82,6 +82,7 @@ mydata <- mydata %>%
          livingcond                      = factor(livingcond, ordered = T),
          education                       = factor(education, ordered = T),
          job_training                    = factor(job_training),
+         compsize                        = ifelse(compsize %in% c(1,2),1, ifelse(compsize %in% c(3,4),2, ifelse(compsize %in% c(5,6,7),3, NA))),
          compsize                        = factor(compsize, ordered = T),
          superior                        = factor(superior),
          overtime                        = factor(overtime, ordered = T),
@@ -301,15 +302,15 @@ miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 load(paste(mypath, "data.RDA", sep = "/"))
 
 
-#load("data.RDA")
-#load("structure.RDA")
-#load("bn.RDA")
-#load("bnimp.RDA")
-
-#load("bnrcimp.RDA")
-#load("mice.RDA")
-#load("micedata.RDA")
-
+# load("data.RDA")
+# load("structure.RDA")
+# load("bn.RDA")
+# load("bnimp.RDA")
+# load("bnrcimp.RDA")
+# load("mice.RDA")
+# load("micedata.RDA")
+# 
+# sapply(1:k, function(i) sum(is.na(bn.imp$MNAR$`0.3`[[i]])))
 
 # mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
 #                   setNames(lapply(seq_along(miss.prob), function(p) 
@@ -323,18 +324,18 @@ load(paste(mypath, "structure.RDA", sep = "/"))
 #dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
 #  sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
 
-# mi.structure.rev <- mi.structure
-#  for (m in 1:length(miss.mech.vec)){
-#   for (p in 1:length(miss.prob)){
-#     for (l in 1:k){
-#       rel_label <- miss_var_summary(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], order = T)
-#       reliability <- rel_label$pct_miss
-#       names(reliability) <- rel_label$variable
-#       arc.reversal(object = mi.structure.rev[[m]][[p]][[l]]$dag)
-#     }
-#   }
-# }  
-# 
+mi.structure.rev <- mi.structure
+ for (m in 1:length(miss.mech.vec)){
+  for (p in 1:length(miss.prob)){
+    for (l in 1:k){
+      rel_label <- miss_var_summary(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], order = T)
+      reliability <- rel_label$pct_miss
+      names(reliability) <- rel_label$variable
+      arc.reversal(object = mi.structure.rev[[m]][[p]][[l]]$dag)
+    }
+  }
+}
+
 # bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
 #         setNames(lapply(seq_along(miss.prob), function(p) 
 #           future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))), 
@@ -343,13 +344,13 @@ load(paste(mypath, "structure.RDA", sep = "/"))
 #save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 load(paste(mypath, "bn.RDA", sep = "/"))
 
-# print("Now things are getting serious!")
-# bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#             setNames(lapply(seq_along(miss.prob), function(p) 
-#               future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-#                 dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
-# print("bn.imp done without errors!!!!!!!")
-# save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
+print("Now things are getting serious!")
+bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+            setNames(lapply(seq_along(miss.prob), function(p)
+              future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
+print("bn.imp done without errors!!!!!!!")
+save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
 print("Now to the really interesting part... please let there be no errors!")
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -485,72 +486,72 @@ save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 
 
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
-
-continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
-
-lvl1.bn <- ks.list(data = bn.imp)
-
-lvl1.bnrc <- ks.list(data = bnrc)
-
-lvl1.mice <- ks.list(data = mice.imp.complete)
-
-setNames(lapply(1:length(miss.mech.vec), function(m) 
-  setNames(lapply(seq_along(miss.prob), function(p) 
-    sapply(lvl1.bn[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
-setNames(lapply(1:length(miss.mech.vec), function(m) 
-  setNames(lapply(seq_along(miss.prob), function(p) 
-    sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
-setNames(lapply(1:length(miss.mech.vec), function(m) 
-  setNames(lapply(seq_along(miss.prob), function(p) 
-    sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.bn[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
-
-#### Latex table representation: 
-
-table.imp <- list("BN" = lvl1.bn, "BNRC" = lvl1.bnrc, "MICE" = lvl1.mice)
-lvl1.table <- make.lvl1.table()
-
-
-#output2 <- output[1:24,]
-#table.names2 <- c("Residence", "", "Estate", "", "Assets", "", "Build. Loan", "", "Life Ins.", 
-#                  "", "Business Ass.", "", "Vehicles", "", "Tangibles", "",
-#                  "Res. debt", "", "Est. debt", "", "Consumer debt", "", "Student debt", "")
-#rownames(output2) <- table.names2
-
-
-#stargazer(output2, digits = 4, title = "Comparison of BNimp and MICE recovering the marginal continuous distributions",
-#          out = "level1cont.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Mean value over 100 Monte Carlo draws. Monte Carlo Error in brackets")
-
-
-##### 2nd. Levels of Statistical Consistency: continuous vars####
-
-# potentially leave out... will do the same with more covariates later:
-#lvl2.cont.bn <- bd.cont(data = bn.imp)
-#lvl2.cont.bnrc <- bd.cont(data = bnrc)
-#lvl2.cont.mice <- bd.cont(data = mice.imp.complete)
-
-#lapply(1:length(miss.mech.vec), function(m) mean(lvl2.cont.bn[[m]])<mean(lvl2.cont.mice[[m]]))
-#lapply(1:length(miss.mech.vec), function(m) mean(lvl2.cont.bnrc[[m]])<mean(lvl2.cont.bn[[m]]))
-
-##### 1st. Levels of Statistical Consistency: discrete vars ####
-
-discrete.imp.vars <- c("education", "superior", "compsize")
-
-lvl1.discrete.bn <- misclass.error(data = bn.imp)
-lvl1.discrete.bnrc <- misclass.error(data = bnrc)
-lvl1.discrete.mice <- misclass.error(data = mice.imp.complete)
-
-#### Latex Tables 1. level discrete vars
-
-table.disc.imp <- list("BN" = lvl1.discrete.bn, "BNRC" = lvl1.discrete.bnrc, "MICE" = lvl1.discrete.mice)
-lvl1.misclass <- make.lvl1.misclass.table()
-#stargazer(output, digits = 4, title = "Comparison of BNimp and MICE recovering the true classification of discrete variables",
-#          out = "level1disc.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Misclassification error mean value over 100 Monte Carlo draws. Simulation standard errors in brackets")
-
-##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
-
-#lvl2.bn <- bd.full(data=bn.imp)
-#lvl2.bnrc <- bd.full(data=bnrc)
-#lvl2.mice <- bd.full(data=mice.imp.complete)
+# 
+# continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
+# 
+# lvl1.bn <- ks.list(data = bn.imp)
+# 
+# lvl1.bnrc <- ks.list(data = bnrc)
+# 
+# lvl1.mice <- ks.list(data = mice.imp.complete)
+# 
+# setNames(lapply(1:length(miss.mech.vec), function(m) 
+#   setNames(lapply(seq_along(miss.prob), function(p) 
+#     sapply(lvl1.bn[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
+# setNames(lapply(1:length(miss.mech.vec), function(m) 
+#   setNames(lapply(seq_along(miss.prob), function(p) 
+#     sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
+# setNames(lapply(1:length(miss.mech.vec), function(m) 
+#   setNames(lapply(seq_along(miss.prob), function(p) 
+#     sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.bn[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
+# 
+# #### Latex table representation: 
+# 
+# table.imp <- list("BN" = lvl1.bn, "BNRC" = lvl1.bnrc, "MICE" = lvl1.mice)
+# lvl1.table <- make.lvl1.table()
+# 
+# 
+# #output2 <- output[1:24,]
+# #table.names2 <- c("Residence", "", "Estate", "", "Assets", "", "Build. Loan", "", "Life Ins.", 
+# #                  "", "Business Ass.", "", "Vehicles", "", "Tangibles", "",
+# #                  "Res. debt", "", "Est. debt", "", "Consumer debt", "", "Student debt", "")
+# #rownames(output2) <- table.names2
+# 
+# 
+# #stargazer(output2, digits = 4, title = "Comparison of BNimp and MICE recovering the marginal continuous distributions",
+# #          out = "level1cont.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Mean value over 100 Monte Carlo draws. Monte Carlo Error in brackets")
+# 
+# 
+# ##### 2nd. Levels of Statistical Consistency: continuous vars####
+# 
+# # potentially leave out... will do the same with more covariates later:
+# #lvl2.cont.bn <- bd.cont(data = bn.imp)
+# #lvl2.cont.bnrc <- bd.cont(data = bnrc)
+# #lvl2.cont.mice <- bd.cont(data = mice.imp.complete)
+# 
+# #lapply(1:length(miss.mech.vec), function(m) mean(lvl2.cont.bn[[m]])<mean(lvl2.cont.mice[[m]]))
+# #lapply(1:length(miss.mech.vec), function(m) mean(lvl2.cont.bnrc[[m]])<mean(lvl2.cont.bn[[m]]))
+# 
+# ##### 1st. Levels of Statistical Consistency: discrete vars ####
+# 
+# discrete.imp.vars <- c("education", "superior", "compsize")
+# 
+# lvl1.discrete.bn <- misclass.error(data = bn.imp)
+# lvl1.discrete.bnrc <- misclass.error(data = bnrc)
+# lvl1.discrete.mice <- misclass.error(data = mice.imp.complete)
+# 
+# #### Latex Tables 1. level discrete vars
+# 
+# table.disc.imp <- list("BN" = lvl1.discrete.bn, "BNRC" = lvl1.discrete.bnrc, "MICE" = lvl1.discrete.mice)
+# lvl1.misclass <- make.lvl1.misclass.table()
+# #stargazer(output, digits = 4, title = "Comparison of BNimp and MICE recovering the true classification of discrete variables",
+# #          out = "level1disc.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Misclassification error mean value over 100 Monte Carlo draws. Simulation standard errors in brackets")
+# 
+# ##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
+# 
+# #lvl2.bn <- bd.full(data=bn.imp)
+# #lvl2.bnrc <- bd.full(data=bnrc)
+# #lvl2.mice <- bd.full(data=mice.imp.complete)
 
 
 lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
