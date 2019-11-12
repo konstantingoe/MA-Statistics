@@ -349,7 +349,7 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
     test <- lapply(1:nrow(dat_mi), function(r) 
       tryCatch({
         bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
-      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
+      }, error=function(e){cat("ERROR in node",names(reliability)[i]," :",conditionMessage(e), "\n")}))
     if (sum(sapply(test, is.null))>0){
       test.null <- which(sapply(test, is.null))
       for (t in 1:length(test.null)){
@@ -388,7 +388,7 @@ bnrc.imp <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE)
           test <- lapply(1:nrow(dat_mi), function(r) 
             tryCatch({
               bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = listtest[[r]], method = "lw")
-            }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")}))
+            }, error=function(e){cat("ERROR in node",names(reliability)[i]," :",conditionMessage(e), "\n")}))
           
           if (sum(sapply(test, is.null))>0){
             test.null <- which(sapply(test, is.null))

@@ -1,6 +1,5 @@
 ##### Bayesian Network #####
 
-##### Testing MAR ######
 rm(list = ls())
 source("packages.R")
 #source(".path.R")
@@ -8,56 +7,9 @@ source("functions.R")
 mypath<- "/soep/kgoebler/data"
 mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
 
-#potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
 # first impute filter information and then based on these impute wealth components:
 
 ##### Filter Imputation
-
-
-# mydata <- mydata %>% 
-#   mutate(owner                           = factor(owner),
-#          other_estate                    = factor(other_estate),
-#          assets_filter                   = factor(assets_filter),
-#          building_contract_filter        = factor(building_contract_filter),
-#          life_insure_filter              = factor(life_insure_filter),
-#          business_holdings_filter        = factor(business_holdings_filter),
-#          vehicles_filter                 = factor(vehicles_filter), 
-#          tangibles_filter                = factor(tangibles_filter),
-#          residence_debt_filter           = factor(residence_debt_filter),
-#          other_estate_debt_filter        = factor(other_estate_debt_filter),
-#          consumer_debt_filter            = factor(consumer_debt_filter),
-#          education_debt_filter           = factor(education_debt_filter),
-#          lmstatus                        = factor(lmstatus),
-#          sex                             = factor(sex),
-#          famstd                          = factor(famstd),
-#          inherit_filter                  = factor(inherit_filter),
-#          selfempl                        = factor(selfempl),
-#          kidsu16                         = factor(kidsu16),
-#          livingcond                      = factor(livingcond, ordered = T),
-#          education                       = factor(education, ordered = T),
-#          job_training                    = factor(job_training),
-#          compsize                        = factor(compsize, ordered = T),
-#          superior                        = factor(superior),
-#          overtime                        = factor(overtime, ordered = T),
-#          second_empl                     = factor(second_empl),
-#          citizen                         = factor(citizen),
-#          schoolingF                      = factor(schoolingF, ordered = T),
-#          schoolingM                      = factor(schoolingM, ordered = T),
-#          trainingF                       = factor(trainingF, ordered = T),
-#          trainingM                       = factor(trainingM, ordered = T),
-#          hhtyp                           = factor(hhtyp),
-#          livingcond                      = factor(livingcond, ordered = T),
-#          housecond                       = factor(housecond, ordered = T),
-#          lnsqrmtrs                       = normalize.log(sqmtrs),
-#          lnsaving                        = normalize.log(saving_value),
-#          lnhhnetto                       = normalize.log(hhnetto),
-#          lninheritance                   = normalize.log(total_inheritance),
-#          lnorbis                         = normalize.log(orbis_wealth),
-#          lnwage_g                        = normalize.log(wage_gross_m),
-#          lnwage_n                        = normalize.log(wage_net_m),
-#          lnjobduration                   = normalize.log(jobduration),
-#          lnestateinc                     = normalize.log(estate_income_value))
-
 
 mydata <- mydata %>% 
   mutate(owner                           = factor(owner),
@@ -276,30 +228,30 @@ miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
 miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 
-mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
-                      setNames(lapply(seq_along(miss.prob), function(p)
-                        lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
-mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
-                    setNames(lapply(seq_along(miss.prob), function(p)
-                      lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
-
-
-
-for (m in 1:length(miss.mech.vec)){
-  for (p in 1:length(miss.prob)){
-    for (l in 1:k) {
-      for (i in 1:length(lnrecode.vars)){
-        mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99,
-                                                     -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
-                                                     mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
-      }
-      mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
-    }
-  }
-}
-
-save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
-#load(paste(mypath, "data.RDA", sep = "/"))
+# mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
+#                       setNames(lapply(seq_along(miss.prob), function(p)
+#                         lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
+# mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
+#                     setNames(lapply(seq_along(miss.prob), function(p)
+#                       lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
+# 
+# 
+# 
+# for (m in 1:length(miss.mech.vec)){
+#   for (p in 1:length(miss.prob)){
+#     for (l in 1:k) {
+#       for (i in 1:length(lnrecode.vars)){
+#         mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99,
+#                                                      -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
+#                                                      mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
+#       }
+#       mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+#     }
+#   }
+# }
+# 
+# save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
+load(paste(mypath, "data.RDA", sep = "/"))
 
 
 # load("data.RDA")
@@ -310,47 +262,49 @@ save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
 # load("mice.RDA")
 # load("micedata.RDA")
 # 
-# sapply(1:k, function(i) sum(is.na(bn.imp$MNAR$`0.3`[[i]])))
+# sapply(1:k, function(i) sum(is.na(mice.imp.complete$MAR$`0.2`[[i]])))
 
-mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                  setNames(lapply(seq_along(miss.prob), function(p)
-                    future_lapply(future.seed = T, 1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
-                          fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
-                           nm= names(miss.prob))), nm = miss.mech.vec)
+# mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#                   setNames(lapply(seq_along(miss.prob), function(p)
+#                     future_lapply(future.seed = T, 1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
+#                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
+#                            nm= names(miss.prob))), nm = miss.mech.vec)
 
-save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
-#load(paste(mypath, "structure.RDA", sep = "/"))
+#save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+load(paste(mypath, "structure.RDA", sep = "/"))
 
 #dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
 #  sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
 
-mi.structure.rev <- mi.structure
- for (m in 1:length(miss.mech.vec)){
-  for (p in 1:length(miss.prob)){
-    for (l in 1:k){
-      rel_label <- miss_var_summary(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], order = T)
-      reliability <- rel_label$pct_miss
-      names(reliability) <- rel_label$variable
-      arc.reversal(object = mi.structure.rev[[m]][[p]][[l]]$dag)
-    }
-  }
-}
+# mi.structure.rev <- mi.structure
+#  for (m in 1:length(miss.mech.vec)){
+#   for (p in 1:length(miss.prob)){
+#     for (l in 1:k){
+#       rel_label <- miss_var_summary(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], order = T)
+#       reliability <- rel_label$pct_miss
+#       names(reliability) <- rel_label$variable
+#       arc.reversal(object = mi.structure.rev[[m]][[p]][[l]]$dag)
+#     }
+#   }
+# }
+# 
+# bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
+#         setNames(lapply(seq_along(miss.prob), function(p)
+#           future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))),
+#            nm= names(miss.prob))), nm = miss.mech.vec)
+# 
+# save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
+load(paste(mypath, "bn.RDA", sep = "/"))
 
-bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
-        setNames(lapply(seq_along(miss.prob), function(p)
-          future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))),
-           nm= names(miss.prob))), nm = miss.mech.vec)
+# print("Now things are getting serious!")
+# bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#             setNames(lapply(seq_along(miss.prob), function(p)
+#               future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+#                 dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
+# print("bn.imp done without errors!!!!!!!")
+# save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
-save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
-#load(paste(mypath, "bn.RDA", sep = "/"))
-
-print("Now things are getting serious!")
-bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-            setNames(lapply(seq_along(miss.prob), function(p)
-              future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
-print("bn.imp done without errors!!!!!!!")
-save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
+load(paste(mypath, "bnimp.RDA", sep = "/"))
 
 print("Now to the really interesting part... please let there be no errors!")
 bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -586,10 +540,46 @@ save(lvl2.bnrc,file = paste(mypath,"bd_bnrc.RDA", sep = "/"))
 save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
 
 
-
-# bntesting <- sapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[2]][[1]][[l]], 
-#                         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+# pboptions(type = "txt")
+# bntesting <- pbsapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[2]][[1]][[l]],
+#                         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
 #                         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
+# bnrctesting <- pbsapply(1:k, function(l) bd.test(x = dplyr::select(bnrc[[2]][[1]][[l]],
+#                        dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
+#                        dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
+# micetesting <- pbsapply(1:k, function(l) bd.test(x = dplyr::select(mice.imp.complete[[2]][[1]][[l]],
+#                        dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
+#                        dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
+# 
+# boxplotdata <- data.frame(ball_d = c(bntesting, bnrctesting, micetesting),
+#                 Method = factor(c(rep(1,k), rep(2,k), rep(3,k)), ordered = F, labels= c("BN.imp", "BNRC.imp", "MICE.imp")))
+# 
+# box <- ggplot(boxplotdata, aes(x=Method, y=ball_d)) +
+#        geom_boxplot(aes(group=Method, color = Method)) +
+#        xlab("") +
+#        theme(legend.position = "bottom") +
+#        ylab("Ball divergence") +
+#        ggtitle("MNAR Statistical constistency given 10% missing occurance")
+# 
+# bntestingmar <- pbsapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[3]][[2]][[l]],
+#                                                                  dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
+#                                                                                                                                            dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
+# bnrctestingmar <- pbsapply(1:k, function(l) bd.test(x = dplyr::select(bnrc[[3]][[2]][[l]],
+#                                                                    dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
+#                                                                                                                                              dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
+# micetestingmar <- pbsapply(1:k, function(l) bd.test(x = dplyr::select(mice.imp.complete[[3]][[2]][[l]],
+#                                                                    dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
+#                                                                                                                                              dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)
+# 
+# boxplotdatamar <- data.frame(ball_d = c(bntestingmar, bnrctestingmar, micetestingmar),
+#                           Method = factor(c(rep(1,k), rep(2,k), rep(3,k)), ordered = F, labels= c("BN.imp", "BNRC.imp", "MICE.imp")))
+# 
+# boxmar <- ggplot(boxplotdatamar, aes(x=Method, y=ball_d)) +
+#   geom_boxplot(aes(group=Method, color = Method)) +
+#   xlab("") +
+#   theme(legend.position = "bottom") +
+#   ylab("Ball divergence") +
+#   ggtitle("MAR Statistical constistency given 20% missing occurance")
 
 
 #### plotting mean over repetitions:
