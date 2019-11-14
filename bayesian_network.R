@@ -221,7 +221,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 set.seed(12)
 
 k <- 500
-numCores <- detectCores() -2
+numCores <- detectCores() -5
 plan(multiprocess, workers = numCores)
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
@@ -262,7 +262,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 # load("mice.RDA")
 # load("micedata.RDA")
 # 
-# sapply(1:k, function(i) sum(is.na(mice.imp.complete$MAR$`0.2`[[i]])))
+# sapply(1:k, function(i) sum(is.na(bnrc$MCAR$`0.3`[[i]])))
 
 # mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
 #                   setNames(lapply(seq_along(miss.prob), function(p)
@@ -306,14 +306,16 @@ load(paste(mypath, "bn.RDA", sep = "/"))
 
 load(paste(mypath, "bnimp.RDA", sep = "/"))
 
-print("Now to the really interesting part... please let there be no errors!")
-bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
-          setNames(lapply(seq_along(miss.prob), function(p) 
-            future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
-              data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
-                nm= names(miss.prob))), nm = miss.mech.vec)
-print("Hurray, no errors!")
-save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
+# print("Now to the really interesting part... please let there be no errors!")
+# bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#           setNames(lapply(seq_along(miss.prob), function(p) 
+#             future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
+#               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
+#                 nm= names(miss.prob))), nm = miss.mech.vec)
+# print("Hurray, no errors!")
+# save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
+
+load(paste(mypath, "bnrcimp.RDA", sep = "/"))
 
 #### Algorithm done
 
@@ -417,7 +419,7 @@ post["lnsaving"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filte
 post["lninheritance"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], inherit_filter==1)$lninheritance, na.rm=T), Inf))"
 
 post["superior"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$superior)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$superior)[3])))"
-post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[8])))"
+post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[4])))"
 
 
 mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -533,7 +535,7 @@ lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
         nm= names(miss.prob))), nm = miss.mech.vec)
 
-print("mice ball aleacta est")
+print("mice ball alea iacta est")
 
 save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
 save(lvl2.bnrc,file = paste(mypath,"bd_bnrc.RDA", sep = "/"))
