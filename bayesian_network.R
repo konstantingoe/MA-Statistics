@@ -271,7 +271,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 #                            nm= names(miss.prob))), nm = miss.mech.vec)
 
 #save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
-#load(paste(mypath, "structure.RDA", sep = "/"))
+load(paste(mypath, "structure.RDA", sep = "/"))
 
 #dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
 #  sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -294,7 +294,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 #            nm= names(miss.prob))), nm = miss.mech.vec)
 # 
 # save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
-#load(paste(mypath, "bn.RDA", sep = "/"))
+load(paste(mypath, "bn.RDA", sep = "/"))
 
 # print("Now things are getting serious!")
 # bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -304,7 +304,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 # print("bn.imp done without errors!!!!!!!")
 # save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
-#load(paste(mypath, "bnimp.RDA", sep = "/"))
+load(paste(mypath, "bnimp.RDA", sep = "/"))
 
 # print("Now to the really interesting part... please let there be no errors!")
 # bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -315,7 +315,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 # print("Hurray, no errors!")
 # save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
 
-#load(paste(mypath, "bnrcimp.RDA", sep = "/"))
+load(paste(mypath, "bnrcimp.RDA", sep = "/"))
 
 #### Algorithm done
 
@@ -452,12 +452,12 @@ for (m in 1:length(miss.mech.vec)){
 
 mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
               setNames(lapply(seq_along(miss.prob), function(p) 
-                future_lapply(future.seed = T, 1:10, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[m]], post = post.mice[[m]], print=F, m=1))),
+                future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[m]], post = post.mice[[m]], print=F, m=1))),
                   nm=names(miss.prob))), nm=miss.mech.vec)
 
 mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
-                        future_lapply(future.seed = T, 1:10, function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
+                        future_lapply(future.seed = T, 1:k, function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
                           nm=names(miss.prob))),nm = miss.mech.vec)
 
 
@@ -468,7 +468,6 @@ save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 #Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
 # the way would be to define a "custom made" pmm function where structural zeroes are not considered in the pmm algorithm!
 
-xxx
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
 # 
 continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
