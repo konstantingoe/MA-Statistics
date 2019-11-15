@@ -378,7 +378,7 @@ pred[,] <- 0
 for (i in 1:length(miss)){
   pred[miss[i], indepvars.all[indepvars.all != miss[i]]] <- 1
 }
-
+pred["superior","employed"] <- 0
 #pred[lnwealthvars, c("lnorbis",filters)] <- 1
 pred[lnwealthvars, c("lnorbis")] <- 1
 
@@ -450,7 +450,6 @@ mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
                   nm=names(miss.prob))), nm=miss.mech.vec)
 
 warnings()
-
 mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
                         future_lapply(future.seed = T, 1:10, function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
@@ -464,7 +463,7 @@ save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 #Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
 # the way would be to define a "custom made" pmm function where structural zeroes are not considered in the pmm algorithm!
 
-
+xxx
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
 # 
 continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
