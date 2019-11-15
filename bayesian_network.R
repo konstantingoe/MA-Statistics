@@ -271,7 +271,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 #                            nm= names(miss.prob))), nm = miss.mech.vec)
 
 #save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
-load(paste(mypath, "structure.RDA", sep = "/"))
+#load(paste(mypath, "structure.RDA", sep = "/"))
 
 #dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
 #  sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -294,7 +294,7 @@ load(paste(mypath, "structure.RDA", sep = "/"))
 #            nm= names(miss.prob))), nm = miss.mech.vec)
 # 
 # save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
-load(paste(mypath, "bn.RDA", sep = "/"))
+#load(paste(mypath, "bn.RDA", sep = "/"))
 
 # print("Now things are getting serious!")
 # bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -304,7 +304,7 @@ load(paste(mypath, "bn.RDA", sep = "/"))
 # print("bn.imp done without errors!!!!!!!")
 # save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
-load(paste(mypath, "bnimp.RDA", sep = "/"))
+#load(paste(mypath, "bnimp.RDA", sep = "/"))
 
 # print("Now to the really interesting part... please let there be no errors!")
 # bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -315,7 +315,7 @@ load(paste(mypath, "bnimp.RDA", sep = "/"))
 # print("Hurray, no errors!")
 # save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
 
-load(paste(mypath, "bnrcimp.RDA", sep = "/"))
+#load(paste(mypath, "bnrcimp.RDA", sep = "/"))
 
 #### Algorithm done
 
@@ -449,11 +449,31 @@ for (m in 1:length(miss.mech.vec)){
   pred.mice[[m]] <- pred
 }
 
+print("Starting with MCAR")
+mice.imp1 <- setNames(lapply(seq_along(miss.prob), function(p) 
+              future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[1]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[1]], post = post.mice[[1]], print=F, m=1))),
+                nm=miss.mech.vec)
+print("Finished MCAR with no errors")
 
-mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-              setNames(lapply(seq_along(miss.prob), function(p) 
-                future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[m]], post = post.mice[[m]], print=F, m=1))),
-                  nm=names(miss.prob))), nm=miss.mech.vec)
+print("Starting with MNAR")
+mice.imp1 <- setNames(lapply(seq_along(miss.prob), function(p) 
+              future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[2]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[2]], post = post.mice[[2]], print=F, m=1))),
+                nm=miss.mech.vec)
+print("Finished MNAR with no errors")
+
+print("Starting with MAR")
+mice.imp1 <- setNames(lapply(seq_along(miss.prob), function(p) 
+              future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[3]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[3]], post = post.mice[[3]], print=F, m=1))),
+                nm=miss.mech.vec)
+print("Finished MAR with no errors")
+
+xxx
+   
+
+# mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#               setNames(lapply(seq_along(miss.prob), function(p) 
+#                 future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[m]], post = post.mice[[m]], print=F, m=1))),
+#                   nm=names(miss.prob))), nm=miss.mech.vec)
 
 mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
