@@ -221,7 +221,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 set.seed(12)
 
 k <- 500
-numCores <- detectCores() -5
+numCores <- detectCores() -2
 plan(multiprocess, workers = numCores)
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
@@ -304,7 +304,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 # print("bn.imp done without errors!!!!!!!")
 # save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
-#load(paste(mypath, "bnimp.RDA", sep = "/"))
+load(paste(mypath, "bnimp.RDA", sep = "/"))
 
 # print("Now to the really interesting part... please let there be no errors!")
 # bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -315,7 +315,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 # print("Hurray, no errors!")
 # save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
 
-#load(paste(mypath, "bnrcimp.RDA", sep = "/"))
+load(paste(mypath, "bnrcimp.RDA", sep = "/"))
 
 #### Algorithm done
 
@@ -452,23 +452,23 @@ for (m in 1:length(miss.mech.vec)){
 print("Starting with MCAR")
 mice.imp1 <- setNames(lapply(seq_along(miss.prob), function(p) 
               future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[1]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[1]], post = post.mice[[1]], print=F, m=1))),
-                nm=miss.mech.vec)
+                nm=names(miss.prob))
 print("Finished MCAR with no errors")
 
 print("Starting with MNAR")
-mice.imp1 <- setNames(lapply(seq_along(miss.prob), function(p) 
+mice.imp2 <- setNames(lapply(seq_along(miss.prob), function(p) 
               future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[2]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[2]], post = post.mice[[2]], print=F, m=1))),
-                nm=miss.mech.vec)
+                nm=names(miss.prob))
 print("Finished MNAR with no errors")
 
 print("Starting with MAR")
-mice.imp1 <- setNames(lapply(seq_along(miss.prob), function(p) 
+mice.imp3 <- setNames(lapply(seq_along(miss.prob), function(p) 
               future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[3]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[3]], post = post.mice[[3]], print=F, m=1))),
-                nm=miss.mech.vec)
+                nm=names(miss.prob))
 print("Finished MAR with no errors")
 
-xxx
-   
+
+mice.imp <- list("MCAR"=mice.imp1, "MNAR" = mice.imp2, "MAR" = mice.imp3)
 
 # mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
 #               setNames(lapply(seq_along(miss.prob), function(p) 
@@ -484,6 +484,7 @@ mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
 save(mice.imp, file = paste(mypath,"mice.RDA", sep = "/"))
 save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 
+print("MICE done!")
 #### trying to solve the nearest neighbor problem... post processing?
 #Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
 # the way would be to define a "custom made" pmm function where structural zeroes are not considered in the pmm algorithm!
@@ -588,7 +589,7 @@ save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
 save(lvl2.bnrc,file = paste(mypath,"bd_bnrc.RDA", sep = "/"))
 save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
 
-
+print("All done, congratulations! Now finish you MA and stop watching youtube video!")
 # pboptions(type = "txt")
 # bntesting <- pbsapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[2]][[1]][[l]],
 #                         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
