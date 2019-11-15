@@ -221,7 +221,7 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 set.seed(12)
 
 k <- 500
-numCores <- detectCores() -3
+numCores <- detectCores() -5
 plan(multiprocess, workers = numCores)
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
@@ -271,7 +271,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 #                            nm= names(miss.prob))), nm = miss.mech.vec)
 
 #save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
-load(paste(mypath, "structure.RDA", sep = "/"))
+#load(paste(mypath, "structure.RDA", sep = "/"))
 
 #dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
 #  sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
@@ -294,7 +294,7 @@ load(paste(mypath, "structure.RDA", sep = "/"))
 #            nm= names(miss.prob))), nm = miss.mech.vec)
 # 
 # save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
-load(paste(mypath, "bn.RDA", sep = "/"))
+#load(paste(mypath, "bn.RDA", sep = "/"))
 
 # print("Now things are getting serious!")
 # bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -304,7 +304,7 @@ load(paste(mypath, "bn.RDA", sep = "/"))
 # print("bn.imp done without errors!!!!!!!")
 # save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
-load(paste(mypath, "bnimp.RDA", sep = "/"))
+#load(paste(mypath, "bnimp.RDA", sep = "/"))
 
 # print("Now to the really interesting part... please let there be no errors!")
 # bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -315,7 +315,7 @@ load(paste(mypath, "bnimp.RDA", sep = "/"))
 # print("Hurray, no errors!")
 # save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
 
-load(paste(mypath, "bnrcimp.RDA", sep = "/"))
+#load(paste(mypath, "bnrcimp.RDA", sep = "/"))
 
 #### Algorithm done
 
@@ -354,102 +354,107 @@ load(paste(mypath, "bnrcimp.RDA", sep = "/"))
 for (m in 1:length(miss.mech.vec)){
   for (p in 1:length(miss.prob)){
     for (l in 1:k){
-    mi.multiple.imp[[m]][[p]][[l]] <- mi.multiple.imp[[m]][[p]][[l]] %>% 
+    mi.multiple.imp[[m]][[p]][[l]] <- mi.multiple.imp[[m]][[p]][[l]] %>%
       mutate(employed = ifelse(lmstatus %in% c(1,2,4), 1,0))
     }
-  }  
-}  
-imp <- mice(mi.multiple.imp[[1]][[1]][[1]], maxit = 0, print=F)
-meth <- imp$method
-pred <- imp$predictorMatrix
-rel_label <- miss_var_summary(mi.multiple.imp[[1]][[1]][[1]][,names(mi.multiple.imp[[1]][[1]][[1]]) != "pid"], order = T)
-reliability <- rel_label$pct_miss
-names(reliability) <- rel_label$variable
-#pred[,"pid"] <- 0
-
-indepvars.all <- c("age", "sex", "ost", "bik", "wuma7", "employed", "inherit_filter",
-                   "citizen", "famstd", "gborn", "kidsu16", "partner", "saving", "lnsaving", 
-                   "lninheritance", "lnhhnetto", "compsize",
-                   "education")
-
-miss <- names(reliability[reliability>0])
-pred[,] <- 0
-
-for (i in 1:length(miss)){
-  pred[miss[i], indepvars.all[indepvars.all != miss[i]]] <- 1
+  }
 }
-pred["superior","employed"] <- 0
-#pred[lnwealthvars, c("lnorbis",filters)] <- 1
-pred[lnwealthvars, c("lnorbis")] <- 1
 
-# more variables for residence variables:
-indepvars.residence <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence_debt", "lnestate_debt", "selfempl",
-                         "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
-indepvars.residence.debt <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence", "lnestate", "selfempl",
-                              "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
-pred["lnresidence_debt", c(indepvars.residence.debt, "lnestate_debt")] <- 1
-pred["lnestate_debt", c(indepvars.residence.debt, "lnresidence_debt")] <- 1
-pred["lnresidence", c(indepvars.residence, "lnestate")] <- 1
-pred["lnestate", c(indepvars.residence, "lnresidence")] <- 1
-pred["consumer_debt_filter", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
-pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
-pred["lnbuilding", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
-
-#### specify possible range for logical constraints
-post <- make.post(mi.multiple.imp[[1]][[1]][[1]])
-
-#post["lnresidence"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[m]][[p]][[1]], owner==1)$lnresidence, na.rm=T), Inf))"
-post["lnresidence"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.2638, Inf))"
-#post["lnestate"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], other_estate==1)$lnestate, na.rm=T), Inf))"
-post["lnestate"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.5252, Inf))"
-#post["lnassets"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], assets_filter==1)$lnassets, na.rm=T), Inf))"
-post["lnassets"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.4922, Inf))"
-#post["lnbuilding"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], building_contract_filter==1)$lnbuilding, na.rm=T), Inf))"
-post["lnbuilding"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.9343, Inf))"
-#post["lnlife"]           <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], life_insure_filter==1)$lnlife, na.rm=T), Inf))"
-post["lnlife"]           <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.5128, Inf))"
-#post["lnbusiness"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], business_holdings_filter==1)$lnbusiness, na.rm=T), Inf))"
-post["lnbusiness"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.9272, Inf))"
-#post["lnvehicles"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], vehicles_filter==1)$lnvehicles, na.rm=T), Inf))"
-post["lnvehicles"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.5062, Inf))"
-#post["lntangibles"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], tangibles_filter==1)$lntangibles, na.rm=T), Inf))"
-post["lntangibles"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.41, Inf))"
-#post["lnresidence_debt"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], residence_debt_filter==1)$lnresidence_debt, na.rm=T), Inf))"
-post["lnresidence_debt"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.438, Inf))"
-#post["lnestate_debt"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], other_estate_debt_filter==1)$lnestate_debt, na.rm=T), Inf))"
-post["lnestate_debt"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.3949, Inf))"
-#post["lnconsumer_debt"]  <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], consumer_debt_filter==1)$lnconsumer_debt, na.rm=T), Inf))"
-post["lnconsumer_debt"]  <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.3812, Inf))"
-#post["lnstudent_debt"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], education_debt_filter==1)$lnstudent_debt, na.rm=T), Inf))"
-post["lnstudent_debt"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.1447, Inf))"
-
-#post["lnjobduration"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnjobduration, na.rm=T), Inf))"
-post["lnjobduration"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-1.23, Inf))"
-#post["lnworkinghours"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnworkinghours, na.rm=T), Inf))"
-post["lnworkinghours"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-1.363, Inf))"
-#post["lnwage_gross"]     <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnwage_gross, na.rm=T), Inf))"
-post["lnwage_gross"]     <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.8104, Inf))"
-#post["lnwage_net"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnwage_net, na.rm=T), Inf))"
-post["lnwage_net"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.8014, Inf))"
-#post["lnsaving"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], saving==1)$lnsaving, na.rm=T), Inf))"
-post["lnsaving"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.5134, Inf))"
-
-#post["lninheritance"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], inherit_filter==1)$lninheritance, na.rm=T), Inf))"
-post["lninheritance"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.531, Inf))"
-
-#post["superior"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$superior)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$superior)[3])))"
-post["superior"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(0, 1))"
-
-#post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[4])))"
-post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(1, 3))"
+post.mice <- list()
+pred.mice <- list()
+for (m in 1:length(miss.mech.vec)){
+  imp <- mice(mi.multiple.imp[[m]][[1]][[1]], maxit = 0, print=F)
+  meth <- imp$method
+  pred <- imp$predictorMatrix
+  rel_label <- miss_var_summary(mi.multiple.imp[[m]][[1]][[1]][,names(mi.multiple.imp[[m]][[1]][[1]]) != "pid"], order = T)
+  reliability <- rel_label$pct_miss
+  names(reliability) <- rel_label$variable
+  #pred[,"pid"] <- 0
+  
+  indepvars.all <- c("age", "sex", "ost", "bik", "wuma7", "employed", "inherit_filter",
+                     "citizen", "famstd", "gborn", "kidsu16", "partner", "saving", "lnsaving", 
+                     "lninheritance", "lnhhnetto", "compsize",
+                     "education")
+  
+  miss <- names(reliability[reliability>0])
+  pred[,] <- 0
+  
+  for (i in 1:length(miss)){
+    pred[miss[i], indepvars.all[indepvars.all != miss[i]]] <- 1
+  }
+  pred["superior","employed"] <- 0
+  #pred[lnwealthvars, c("lnorbis",filters)] <- 1
+  pred[lnwealthvars, c("lnorbis")] <- 1
+  
+  # more variables for residence variables:
+  indepvars.residence <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence_debt", "lnestate_debt",
+                           "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
+  indepvars.residence.debt <- c("sex", "ost", "lnwage_gross", "lnwage_net", "lnresidence", "lnestate",
+                                "lnvehicles", "partner", "age", "lnlife", "lninheritance", "bik", "wuma7")
+  pred["lnresidence_debt", c(indepvars.residence.debt, "lnestate_debt")] <- 1
+  pred["lnestate_debt", c(indepvars.residence.debt, "lnresidence_debt")] <- 1
+  pred["lnresidence", c(indepvars.residence, "lnestate")] <- 1
+  pred["lnestate", c(indepvars.residence, "lnresidence")] <- 1
+  pred["consumer_debt_filter", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
+  pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
+  pred["lnbuilding", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
+  
+  #### specify possible range for logical constraints
+  post <- make.post(mi.multiple.imp[[m]][[1]][[1]])
+  
+  #post["lnresidence"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[m]][[p]][[1]], owner==1)$lnresidence, na.rm=T), Inf))"
+  post["lnresidence"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.2638, Inf))"
+  #post["lnestate"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], other_estate==1)$lnestate, na.rm=T), Inf))"
+  post["lnestate"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.5252, Inf))"
+  #post["lnassets"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], assets_filter==1)$lnassets, na.rm=T), Inf))"
+  post["lnassets"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.4922, Inf))"
+  #post["lnbuilding"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], building_contract_filter==1)$lnbuilding, na.rm=T), Inf))"
+  post["lnbuilding"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.9343, Inf))"
+  #post["lnlife"]           <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], life_insure_filter==1)$lnlife, na.rm=T), Inf))"
+  post["lnlife"]           <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.5128, Inf))"
+  #post["lnbusiness"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], business_holdings_filter==1)$lnbusiness, na.rm=T), Inf))"
+  post["lnbusiness"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.9272, Inf))"
+  #post["lnvehicles"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], vehicles_filter==1)$lnvehicles, na.rm=T), Inf))"
+  post["lnvehicles"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.5062, Inf))"
+  #post["lntangibles"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], tangibles_filter==1)$lntangibles, na.rm=T), Inf))"
+  post["lntangibles"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.41, Inf))"
+  #post["lnresidence_debt"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], residence_debt_filter==1)$lnresidence_debt, na.rm=T), Inf))"
+  post["lnresidence_debt"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.438, Inf))"
+  #post["lnestate_debt"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], other_estate_debt_filter==1)$lnestate_debt, na.rm=T), Inf))"
+  post["lnestate_debt"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.3949, Inf))"
+  #post["lnconsumer_debt"]  <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], consumer_debt_filter==1)$lnconsumer_debt, na.rm=T), Inf))"
+  post["lnconsumer_debt"]  <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.3812, Inf))"
+  #post["lnstudent_debt"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], education_debt_filter==1)$lnstudent_debt, na.rm=T), Inf))"
+  post["lnstudent_debt"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.1447, Inf))"
+  
+  #post["lnjobduration"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnjobduration, na.rm=T), Inf))"
+  post["lnjobduration"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-1.23, Inf))"
+  #post["lnworkinghours"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnworkinghours, na.rm=T), Inf))"
+  post["lnworkinghours"]   <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-1.363, Inf))"
+  #post["lnwage_gross"]     <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnwage_gross, na.rm=T), Inf))"
+  post["lnwage_gross"]     <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.8104, Inf))"
+  #post["lnwage_net"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], employed==1)$lnwage_net, na.rm=T), Inf))"
+  post["lnwage_net"]       <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.8014, Inf))"
+  #post["lnsaving"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], saving==1)$lnsaving, na.rm=T), Inf))"
+  post["lnsaving"]         <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.5134, Inf))"
+  #post["lninheritance"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[1]][[1]][[1]], inherit_filter==1)$lninheritance, na.rm=T), Inf))"
+  post["lninheritance"]    <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(-0.531, Inf))"
+  #post["superior"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$superior)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$superior)[3])))"
+  post["superior"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(0, 1))"
+  #post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[2]), as.numeric(levels(mi.multiple.imp[[1]][[1]][[1]]$compsize)[4])))"
+  post["compsize"]         <- "imp[[j]][, i] <- squeeze(as.numeric(imp[[j]][, i]), c(1, 3))"
+  
+  
+  post.mice[[m]] <- post
+  pred.mice[[m]] <- pred
+}
 
 
 mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
               setNames(lapply(seq_along(miss.prob), function(p) 
-                future_lapply(future.seed = T, 1:10, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1))),
+                future_lapply(future.seed = T, 1:10, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[m]], post = post.mice[[m]], print=F, m=1))),
                   nm=names(miss.prob))), nm=miss.mech.vec)
 
-warnings()
 mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
                         future_lapply(future.seed = T, 1:10, function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
