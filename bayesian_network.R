@@ -449,6 +449,8 @@ mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
                 future_lapply(future.seed = T, 1:10, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred, post = post, print=F, m=1))),
                   nm=names(miss.prob))), nm=miss.mech.vec)
 
+warnings()
+
 mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
                         future_lapply(future.seed = T, 1:10, function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
