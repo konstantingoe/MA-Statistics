@@ -220,41 +220,42 @@ x.vars <- c("age", "sex", "ost", "bik", "wuma7", "inherit_filter",
 
 set.seed(12)
 
-k <- 500
 numCores <- detectCores() -2
 plan(multiprocess, workers = numCores)
+k <- 500
+
 miss.mechanism <- list("MCAR" = make.mcar, "MNAR" = make.mnar)
 miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
 miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 
-mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
-                      setNames(lapply(seq_along(miss.prob), function(p)
-                        lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
-mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
-                    setNames(lapply(seq_along(miss.prob), function(p)
-                      lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
-
-
-
-for (m in 1:length(miss.mech.vec)){
-  for (p in 1:length(miss.prob)){
-    for (l in 1:k) {
-      for (i in 1:length(lnrecode.vars)){
-        mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99,
-                                                     -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
-                                                     mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
-      }
-      mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
-    }
-  }
-}
+# mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
+#                       setNames(lapply(seq_along(miss.prob), function(p)
+#                         lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
+# mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
+#                     setNames(lapply(seq_along(miss.prob), function(p)
+#                       lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
+# 
+# 
+# 
+# for (m in 1:length(miss.mech.vec)){
+#   for (p in 1:length(miss.prob)){
+#     for (l in 1:k) {
+#       for (i in 1:length(lnrecode.vars)){
+#         mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99,
+#                                                      -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
+#                                                      mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
+#       }
+#       mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+#     }
+#   }
+# }
 
 # save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
-#load(paste(mypath, "data.RDA", sep = "/"))
+load(paste(mypath, "data.RDA", sep = "/"))
 
 
-# load("data.RDA")
+#load("data.RDA")
 # load("structure.RDA")
 # load("bn.RDA")
 # load("bnimp.RDA")
@@ -447,22 +448,22 @@ for (m in 1:length(miss.mech.vec)){
   post.mice[[m]] <- post
   pred.mice[[m]] <- pred
 }
-
+k
 print("Starting with MCAR")
 mice.imp1 <- setNames(lapply(seq_along(miss.prob), function(p) 
-              future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[1]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[1]], post = post.mice[[1]], print=F, m=1))),
+              future_lapply(future.seed = T, 1:500, function(l) mice(mi.multiple.imp[[1]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[1]], post = post.mice[[1]], print=F, m=1))),
                 nm=names(miss.prob))
 print("Finished MCAR with no errors")
 length(mice.imp1[[1]][[1]])
 print("Starting with MNAR")
 mice.imp2 <- setNames(lapply(seq_along(miss.prob), function(p) 
-              future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[2]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[2]], post = post.mice[[2]], print=F, m=1))),
+              future_lapply(future.seed = T, 1:500, function(l) mice(mi.multiple.imp[[2]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[2]], post = post.mice[[2]], print=F, m=1))),
                 nm=names(miss.prob))
 print("Finished MNAR with no errors")
 length(mice.imp2[[1]][[1]])
 print("Starting with MAR")
 mice.imp3 <- setNames(lapply(seq_along(miss.prob), function(p) 
-              future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[3]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[3]], post = post.mice[[3]], print=F, m=1))),
+              future_lapply(future.seed = T, 1:500, function(l) mice(mi.multiple.imp[[3]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[3]], post = post.mice[[3]], print=F, m=1))),
                 nm=names(miss.prob))
 print("Finished MAR with no errors")
 length(mice.imp3[[1]][[1]])
@@ -476,7 +477,7 @@ mice.imp <- list("MCAR"=mice.imp1, "MNAR" = mice.imp2, "MAR" = mice.imp3)
 
 mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
-                        lapply(function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
+                        lapply(1:500, function(l) mice::complete(mice.imp[[m]][[p]][[l]],action="long"))),
                           nm=names(miss.prob))),nm = miss.mech.vec)
 
 
