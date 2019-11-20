@@ -2,9 +2,9 @@
 
 rm(list = ls())
 source("packages.R")
-#source(".path.R")
+source(".path.R")
 source("functions.R")
-mypath<- "/soep/kgoebler/data"
+#mypath<- "/soep/kgoebler/data"
 mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
 
 # first impute filter information and then based on these impute wealth components:
@@ -251,14 +251,29 @@ miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 # }
 
 # save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
-load(paste(mypath, "data.RDA", sep = "/"))
+#load(paste(mypath, "data.RDA", sep = "/"))
+load(paste(mypath, "bnrc_nmimp.RDA", sep = "/"))
 
+continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
+discrete.imp.vars <- c("education", "superior", "compsize")
+print("starting ball divergense test")
 
+lvl2.bnrc.nm <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc.nm[[m]][[p]][[l]], 
+     dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+        nm= names(miss.prob))), nm = miss.mech.vec)
+
+print("bnrc.nm ball is in goal")
+save(lvl2.bnrc.nm,file = paste(mypath,"bd_bnrc_nm.RDA", sep = "/"))
+xxx
 #load("data.RDA")
 # load("structure.RDA")
 # load("bn.RDA")
 # load("bnimp.RDA")
 # load("bnrcimp.RDA")
+# load("bnrc_nmimp.RDA")
 # load("mice.RDA")
 # load("micedata.RDA")
 # 
@@ -294,7 +309,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 #            nm= names(miss.prob))), nm = miss.mech.vec)
 # 
 # save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
-load(paste(mypath, "bn.RDA", sep = "/"))
+#load(paste(mypath, "bn.RDA", sep = "/"))
 
 # print("Now things are getting serious!")
 # bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -315,15 +330,14 @@ load(paste(mypath, "bn.RDA", sep = "/"))
 # print("Hurray, no errors!")
 # save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
 
-print("Maybe this performs better")
-bnrc.nm <- setNames(lapply(1:length(miss.mech.vec), function(m)
-          setNames(lapply(seq_along(miss.prob), function(p)
-            future_lapply(future.seed = T, 1:k, function(l) bnrc.nomean(bn=bn[[m]][[p]][[l]],
-              data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
-                nm= names(miss.prob))), nm = miss.mech.vec)
-print("Hurray, no errors!")
-save(bnrc.nm, file = paste(mypath, "bnrc_nmimp.RDA", sep = "/"))
-xxx
+# print("Maybe this performs better")
+# bnrc.nm <- setNames(lapply(1:length(miss.mech.vec), function(m)
+#           setNames(lapply(seq_along(miss.prob), function(p)
+#             future_lapply(future.seed = T, 1:k, function(l) bnrc.nomean(bn=bn[[m]][[p]][[l]],
+#               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
+#                 nm= names(miss.prob))), nm = miss.mech.vec)
+# print("Hurray, no errors!")
+# save(bnrc.nm, file = paste(mypath, "bnrc_nmimp.RDA", sep = "/"))
 
 #### Algorithm done
 
@@ -508,6 +522,7 @@ continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
 lvl1.bn <- ks.list(data = bn.imp)
 
 lvl1.bnrc <- ks.list(data = bnrc)
+lvl1.bnrc_nm <- ks.list(data = bnrc.nm)
 
 lvl1.mice <- ks.list(data = mice.imp.complete)
 
