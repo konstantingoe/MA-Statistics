@@ -2,9 +2,9 @@
 
 rm(list = ls())
 source("packages.R")
-source(".path.R")
+#source(".path.R")
 source("functions.R")
-#mypath<- "/soep/kgoebler/data"
+mypath<- "/soep/kgoebler/data"
 mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
 
 # first impute filter information and then based on these impute wealth components:
