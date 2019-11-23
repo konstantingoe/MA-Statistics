@@ -531,14 +531,14 @@ setNames(lapply(1:length(miss.mech.vec), function(m)
     sapply(lvl1.bn[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
 setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p)
-    sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
+    sapply(lvl1.bnrc_nm[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
 setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p)
     sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.bn[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
 
 #### Latex table representation:
 
-table.imp <- list("BN" = lvl1.bn, "BNRC" = lvl1.bnrc, "MICE" = lvl1.mice)
+table.imp <- list("BN" = lvl1.bn, "BNRC" = lvl1.bnrc_nm, "MICE" = lvl1.mice)
 lvl1.table <- make.lvl1.table()
 
 
@@ -568,7 +568,7 @@ lvl1.table <- make.lvl1.table()
 discrete.imp.vars <- c("education", "superior", "compsize")
 
 lvl1.discrete.bn <- misclass.error(data = bn.imp)
-lvl1.discrete.bnrc <- misclass.error(data = bnrc)
+lvl1.discrete.bnrc <- misclass.error(data = bnrc.nm)
 lvl1.discrete.mice <- misclass.error(data = mice.imp.complete)
 
 #### Latex Tables 1. level discrete vars
@@ -620,27 +620,21 @@ print("All done, congratulations! Now finish you MA and stop watching youtube vi
 
 load("bd_bn.RDA")
 load("bd_bnrc.RDA")
+load("bd_bnrc_nm.RDA")
 load("bd_mice.RDA")
 
 #### plotting mean over repetitions:
 
-bnrc.mean <- setNames(lapply(1:length(miss.mech.vec), function(m)
-              as.data.frame(sapply(seq_along(miss.prob), function(p)
-                sapply(1:k, function(i)
-                  mean(lvl2.bnrc[[m]][[p]][1:i]))))),nm=miss.mech.vec)
-for (m in 1:length(miss.mech.vec)){
-  colnames(bnrc.mean[[m]]) <- names(miss.prob)
-}
-
  bn.mean <- summ.reps(data = lvl2.bn)
  bnrc.mean <- summ.reps(data = lvl2.bnrc)
+ bnrc.mean.nm <- summ.reps(data = lvl2.bnrc.nm)
  mice.mean <- summ.reps(data = lvl2.mice)
  reps <- 1:k
 
 #try boxplot:
 boxplotdata <- setNames(lapply(1:length(miss.mech.vec), function(m)
                 setNames(lapply(seq_along(miss.prob), function(p)
-                  data.frame(ball_d = c(bn.mean[[m]][[p]], bnrc.mean[[m]][[p]],mice.mean[[m]][[p]]),
+                  data.frame(ball_d = c(bn.mean[[m]][[p]], bnrc.mean.nm[[m]][[p]],mice.mean[[m]][[p]]),
                              Method = factor(c(rep(1,k), rep(2,k), rep(3,k)), ordered = F, labels= c("BN.imp", "BNRC.imp", "MICE.imp")))), 
                              nm = names(miss.prob))), nm = miss.mech.vec)
 
