@@ -251,23 +251,10 @@ miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 # }
 
 # save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
-#load(paste(mypath, "data.RDA", sep = "/"))
-load(paste(mypath, "bnrc_nmimp.RDA", sep = "/"))
+load(paste(mypath, "data.RDA", sep = "/"))
+# load(paste(mypath, "bnrc_nmimp.RDA", sep = "/"))
+# 
 
-continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
-discrete.imp.vars <- c("education", "superior", "compsize")
-print("starting ball divergense test")
-
-lvl2.bnrc.nm <- setNames(lapply(1:length(miss.mech.vec), function(m)
-  setNames(lapply(seq_along(miss.prob), function(p) 
-    sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc.nm[[m]][[p]][[l]], 
-     dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
-       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
-        nm= names(miss.prob))), nm = miss.mech.vec)
-
-print("bnrc.nm ball is in goal")
-save(lvl2.bnrc.nm,file = paste(mypath,"bd_bnrc_nm.RDA", sep = "/"))
-xxx
 #load("data.RDA")
 # load("structure.RDA")
 # load("bn.RDA")
@@ -309,7 +296,7 @@ xxx
 #            nm= names(miss.prob))), nm = miss.mech.vec)
 # 
 # save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
-#load(paste(mypath, "bn.RDA", sep = "/"))
+load(paste(mypath, "bn.RDA", sep = "/"))
 
 # print("Now things are getting serious!")
 # bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -321,24 +308,38 @@ xxx
 
 
 
-# print("Now to the really interesting part... please let there be no errors!")
+ print("initiating now with 50 cycles through the chain... please let there be no errors!")
 # bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#           setNames(lapply(seq_along(miss.prob), function(p) 
-#             future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]], 
-#               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
-#                 nm= names(miss.prob))), nm = miss.mech.vec)
-# print("Hurray, no errors!")
-# save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
-
-# print("Maybe this performs better")
-# bnrc.nm <- setNames(lapply(1:length(miss.mech.vec), function(m)
 #           setNames(lapply(seq_along(miss.prob), function(p)
-#             future_lapply(future.seed = T, 1:k, function(l) bnrc.nomean(bn=bn[[m]][[p]][[l]],
+#             future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]],
 #               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
 #                 nm= names(miss.prob))), nm = miss.mech.vec)
-# print("Hurray, no errors!")
-# save(bnrc.nm, file = paste(mypath, "bnrc_nmimp.RDA", sep = "/"))
+#  print("Hurray, no errors!")
+#  save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
 
+#print("Maybe this performs better")
+bnrc.nm50 <- setNames(lapply(1:length(miss.mech.vec), function(m)
+          setNames(lapply(seq_along(miss.prob), function(p)
+            future_lapply(future.seed = T, 1:k, function(l) bnrc.nomean(bn=bn[[m]][[p]][[l]],
+              data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 50, returnfull = F))),
+                nm= names(miss.prob))), nm = miss.mech.vec)
+print("Hurray, no errors!")
+save(bnrc.nm50, file = paste(mypath, "bnrc_nmimp50.RDA", sep = "/"))
+
+continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
+discrete.imp.vars <- c("education", "superior", "compsize")
+print("starting ball divergense test")
+
+lvl2.bnrc.nm5 <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  setNames(lapply(seq_along(miss.prob), function(p)
+    sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc.nm50[[m]][[p]][[l]],
+     dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
+       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+        nm= names(miss.prob))), nm = miss.mech.vec)
+
+print("bnrc.nm5 ball is in goal")
+save(lvl2.bnrc.nm5,file = paste(mypath,"bd_bnrc_nm5.RDA", sep = "/"))
+xxx
 #### Algorithm done
 
 # Bayesian Network Reliability Chain (BNRC) algorithm:
