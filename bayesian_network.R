@@ -195,11 +195,10 @@ whitelist <- as.data.frame(cbind(from,to))
 
 
 truth.structure <- hc(truth[, -which(names(truth) == "pid")], whitelist = whitelist, score = "bic-cg")
-#bnplot <- ggnet2(truth.structure$arcs,
-#       arrow.size = 9, arrow.gap = 0.025, label = T)
-#ggsave("truthstruct.pdf", plot = bnplot)
+bnplot <- ggnet2(truth.structure$arcs,
+       arrow.size = 9, arrow.gap = 0.025, label = T)
+ggsave("truthstruct.pdf", plot = bnplot)
 ###### truth done ######
-
 #### prepare simulation #####
 
 for (i in 1:length(lnrecode.vars)){
@@ -261,6 +260,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 # load("bnimp.RDA")
 # load("bnrcimp.RDA")
 # load("bnrc_nmimp.RDA")
+# load("bnrc_nmimp50.RDA")
 # load("mice.RDA")
 # load("micedata.RDA")
 # 
@@ -523,35 +523,35 @@ continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
 lvl1.bn <- ks.list(data = bn.imp)
 
 lvl1.bnrc <- ks.list(data = bnrc)
-lvl1.bnrc_nm <- ks.list(data = bnrc.nm)
-
+lvl1.bnrc_nm <- ks.list(data = bnrc.nm50)
 lvl1.mice <- ks.list(data = mice.imp.complete)
 
-setNames(lapply(1:length(miss.mech.vec), function(m)
-  setNames(lapply(seq_along(miss.prob), function(p)
-    sapply(lvl1.bn[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
-setNames(lapply(1:length(miss.mech.vec), function(m)
-  setNames(lapply(seq_along(miss.prob), function(p)
-    sapply(lvl1.bnrc_nm[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
-setNames(lapply(1:length(miss.mech.vec), function(m)
-  setNames(lapply(seq_along(miss.prob), function(p)
-    sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.bn[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
+# setNames(lapply(1:length(miss.mech.vec), function(m)
+#   setNames(lapply(seq_along(miss.prob), function(p)
+#     sapply(lvl1.bn[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
+# setNames(lapply(1:length(miss.mech.vec), function(m)
+#   setNames(lapply(seq_along(miss.prob), function(p)
+#     sapply(lvl1.bnrc_nm[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
+# setNames(lapply(1:length(miss.mech.vec), function(m)
+#   setNames(lapply(seq_along(miss.prob), function(p)
+#     sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.bn[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
 
 #### Latex table representation:
 
-table.imp <- list("BN" = lvl1.bn, "BNRC" = lvl1.bnrc_nm, "MICE" = lvl1.mice)
-lvl1.table <- make.lvl1.table()
+### MCAR table:
 
+mcartable <- mcarlvltbl(missmech = "MCAR")
+martable <-  mcarlvltbl(missmech = "MAR")
+mnartable <- mcarlvltbl(missmech = "MNAR")
+ 
+stargazer(mcartable[1:36,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MCAR data",
+           out = "level1mcar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
 
-# output2 <- output[1:24,]
-# table.names2 <- c("Residence", "", "Estate", "", "Assets", "", "Build. Loan", "", "Life Ins.",
-#                   "", "Business Ass.", "", "Vehicles", "", "Tangibles", "",
-#                   "Res. debt", "", "Est. debt", "", "Consumer debt", "", "Student debt", "")
-# rownames(output2) <- table.names2
-# 
-# 
-# stargazer(output2, digits = 4, title = "Comparison of BNimp and MICE recovering the marginal continuous distributions",
-#           out = "level1cont.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Mean value over 100 Monte Carlo draws. Monte Carlo Error in brackets")
+stargazer(martable[1:36,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MAR data",
+          out = "level1mar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
+
+stargazer(mnartable[1:36,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MNAR data",
+          out = "level1mnar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
 
 
 # ##### 2nd. Levels of Statistical Consistency: continuous vars####
@@ -569,15 +569,17 @@ lvl1.table <- make.lvl1.table()
 discrete.imp.vars <- c("education", "superior", "compsize")
 
 lvl1.discrete.bn <- misclass.error(data = bn.imp)
-lvl1.discrete.bnrc <- misclass.error(data = bnrc.nm)
+lvl1.discrete.bnrc <- misclass.error(data = bnrc.nm50)
 lvl1.discrete.mice <- misclass.error(data = mice.imp.complete)
 
 #### Latex Tables 1. level discrete vars
 
 table.disc.imp <- list("BN" = lvl1.discrete.bn, "BNRC" = lvl1.discrete.bnrc, "MICE" = lvl1.discrete.mice)
 lvl1.misclass <- make.lvl1.misclass.table()
-#stargazer(output, digits = 4, title = "Comparison of BNimp and MICE recovering the true classification of discrete variables",
-#          out = "level1disc.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Misclassification error mean value over 100 Monte Carlo draws. Simulation standard errors in brackets")
+
+lvl1.desctabl <- rbind(lvl1.misclass$`0,1`,lvl1.misclass$`0.2`,lvl1.misclass$`0.3`)
+stargazer(lvl1.desctabl, digits = 4, title = "Comparison of BNimp and MICE recovering the true classification of discrete variables",
+          out = "level1disc.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Misclassification rate mean value over 100 Monte Carlo draws. Monte Carlo Error in brackets")
 
 ##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
 

@@ -152,10 +152,10 @@ make.mnar <- function(data, miss.prob=miss.prob, cond = NULL){
   for (i in 1: ncol(data1)){
     if (is.numeric(data1[,i])){ 
       data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])] = ifelse(sample(c(T, F),
-                                                                                                               length(data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])]),
-                                                                                                               replace=T, prob=c(miss.prob*2, 1-miss.prob*2)),
-                                                                                                        NA,
-                                                                                                        data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])])
+          length(data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])]),
+          replace=T, prob=c(miss.prob*2, 1-miss.prob*2)),
+          NA,
+          data1[data1[,i] != -99,i][data1[data1[,i] != -99,i] > median(data1[data1[,i] != -99,i])])
     } else if (is.ordered(data1[,i])) {
       n1 <- nrow(data1[data1[,i] == -2,])
       n2 <- nrow(data1[data1[,i] != -2,])
@@ -662,6 +662,54 @@ make.lvl1.table <- function(which.mc.error="MCE"){
   }
   return(output)
 }
+
+######other table proposal:
+
+mcarlvltbl <- function(missmech = missmech){
+  if (missmech == "MCAR"){
+    miss <- 1
+  } else if (missmech == "MAR"){
+    miss <- 3
+  } else if (missmech == "MNAR"){
+    miss <- 2
+  }
+    
+    mcarlvl1 <- cbind(cbind(sapply(lvl1.bn[[miss]]$`0.1`, mean), sapply(lvl1.bnrc_nm[[miss]]$`0.1`, mean), sapply(lvl1.mice[[miss]]$`0.1`, mean)),
+                      cbind(sapply(lvl1.bn[[miss]]$`0.2`, mean), sapply(lvl1.bnrc_nm[[miss]]$`0.2`, mean), sapply(lvl1.mice[[miss]]$`0.2`, mean)),
+                      cbind(sapply(lvl1.bn[[miss]]$`0.3`, mean), sapply(lvl1.bnrc_nm[[miss]]$`0.3`, mean), sapply(lvl1.mice[[miss]]$`0.3`, mean)))
+    mcarlvl1 <- round(mcarlvl1, digits = 4)
+    
+    mcarlvl1sd <- cbind(cbind(sapply(lvl1.bn[[miss]]$`0.1`, sd), sapply(lvl1.bnrc_nm[[miss]]$`0.1`, sd), sapply(lvl1.mice[[miss]]$`0.1`, sd)),
+                        cbind(sapply(lvl1.bn[[miss]]$`0.2`, sd), sapply(lvl1.bnrc_nm[[miss]]$`0.2`, sd), sapply(lvl1.mice[[miss]]$`0.2`, sd)),
+                        cbind(sapply(lvl1.bn[[miss]]$`0.3`, sd), sapply(lvl1.bnrc_nm[[miss]]$`0.3`, sd), sapply(lvl1.mice[[miss]]$`0.3`, sd)))
+    
+    mcarlvl1sd <- apply(round(mcarlvl1sd, digits = 4), 2, function(i) paste("(", i, ")", sep=""))
+    
+    
+    powermcar <- cbind(cbind(sapply(as.data.frame(lvl1.bn[[miss]]$`0.1` < .04334), sum)/k, sapply(as.data.frame(lvl1.bnrc_nm[[miss]]$`0.1` < .04334), sum)/k, sapply(as.data.frame(lvl1.mice[[miss]]$`0.1` < .04334), sum)/k),
+                       cbind(sapply(as.data.frame(lvl1.bn[[miss]]$`0.2` < .04334), sum)/k, sapply(as.data.frame(lvl1.bnrc_nm[[miss]]$`0.2` < .04334), sum)/k, sapply(as.data.frame(lvl1.mice[[miss]]$`0.2` < .04334), sum)/k),
+                       cbind(sapply(as.data.frame(lvl1.bn[[miss]]$`0.3` < .04334), sum)/k, sapply(as.data.frame(lvl1.bnrc_nm[[miss]]$`0.3` < .04334), sum)/k, sapply(as.data.frame(lvl1.mice[[miss]]$`0.3` < .04334), sum)/k))
+    powermcar <- as.matrix(sapply(as.data.frame(powermcar), format, digits=4, nsmall=4))
+    
+    output <- NULL
+    v <- 1
+    for (i in 1:nrow(mcarlvl1)){
+      output <- rbind(output,mcarlvl1[i,])
+      rownames(output)[v] <- rownames(mcarlvl1)[i]
+      output <- rbind(output, mcarlvl1sd[i,])
+      rownames(output)[v+1] <- rownames(mcarlvl1)[i]
+      output <- rbind(output, powermcar[i,])
+      rownames(output)[v+2] <- rownames(mcarlvl1)[i]
+      v <- v + 3
+    }
+     colnames(output) <- rep(c("BN_Pi","BN_MBRC", "MICE"),3)
+return(output)
+}
+
+
+
+
+
 
 #### for discrete vars:
 
