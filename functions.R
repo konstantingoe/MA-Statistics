@@ -555,7 +555,7 @@ ks.list <- function(data=data){
 }     
 
 misclass.error <- function(data=data){
-  results <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  results <- setNames(lapply(c(1,3,2), function(m)
                setNames(lapply(seq_along(miss.prob), function(p) 
                 sapply(1:k,
                   function(l) sapply(1:length(discrete.imp.vars),
@@ -563,13 +563,13 @@ misclass.error <- function(data=data){
                       1-sum(diag(table(data[[m]][[p]][[l]][,discrete.imp.vars[i]],
                         truth[,discrete.imp.vars[i]])))/sum(table(data[[m]][[p]][[l]][,discrete.imp.vars[i]],
                           truth[,discrete.imp.vars[i]]))))),
-                            nm= names(miss.prob))), nm = miss.mech.vec)
+                            nm= names(miss.prob))), nm = c("MCAR", "MAR", "MNAR"))
   
-  results <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  results <- setNames(lapply(c(1,3,2), function(m)
               setNames(lapply(seq_along(miss.prob), function(p) 
                 as.data.frame(t(results[[m]][[p]]))),
-                  nm= names(miss.prob))), nm = miss.mech.vec)
-  for (m in 1:length(miss.mech.vec)){ 
+                  nm= names(miss.prob))), nm = c("MCAR", "MAR", "MNAR"))
+  for (m in c(1,3,2)){ 
     for (p in 1:length(miss.prob)){
       colnames(results[[m]][[p]]) <- discrete.imp.vars
     }
@@ -589,11 +589,11 @@ bd.full <- function(data=data){
 }
 
 summ.reps <- function(data=data, sum.func = mean){
-  results <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  results <- setNames(lapply(c(1,3,2), function(m)
     as.data.frame(sapply(seq_along(miss.prob), function(p)
       sapply(1:k, function(i)
-        sum.func(data[[m]][[p]][1:i]))))),nm=miss.mech.vec)
-  for (m in 1:length(miss.mech.vec)){
+        sum.func(data[[m]][[p]][1:i]))))),nm=c("MCAR", "MAR", "MNAR"))
+  for (m in c(1,3,2)){
     colnames(results[[m]]) <- names(miss.prob)
   }
   return(results)
@@ -707,72 +707,78 @@ return(output)
 }
 
 
-
-
-
-
 #### for discrete vars:
 
-make.lvl1.misclass.table <- function(which.mc.error="MCE"){
-  level1.table <-   setNames(lapply(seq_along(miss.prob), function(p)
-                      sapply(seq_along(table.disc.imp), function(i)
-                        sapply(table.disc.imp[[i]][[p]][[1]], mean, na.omit =T))),nm=names(miss.prob))
-  for (p in 1:length(miss.prob)){
-    for (m in 2:3){
-      level1.table[[p]] <- cbind(level1.table[[p]], 
-                                 setNames(lapply(seq_along(miss.prob), function(p)  
-                                   sapply(seq_along(table.disc.imp), function(i)
-                                     sapply(table.disc.imp[[i]][[p]][[m]], mean, na.omit =T))),nm=names(miss.prob))[[p]])
-    }
-  }  
+make.lvl1.misclass.table <- function(){
+  lvl1.table10 <- bind_cols(as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[1]][[1]] ,mean)))),
+                            as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[2]][[1]] ,mean)))),
+                            as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[3]][[1]] ,mean)))))
+  lvl1.table20 <- bind_cols(as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[1]][[2]] ,mean)))),
+                            as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[2]][[2]] ,mean)))),
+                            as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[3]][[2]] ,mean)))))
+  lvl1.table30 <- bind_cols(as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[1]][[3]] ,mean)))),
+                            as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[2]][[3]] ,mean)))),
+                            as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[3]][[3]] ,mean)))))
   
-  for (p in 1:length(miss.prob)){
-    colnames(level1.table[[p]]) <- rep(names(table.disc.imp),3)
-    level1.table[[p]] <- round(level1.table[[p]], digits = 4)
+  lvl1.tablemean <- bind_rows(lvl1.table10,lvl1.table20,lvl1.table30)
+  lvl1.tablemean <- as.matrix(round(lvl1.tablemean, digits = 4))
+  
+  lvl1.table10sd <- bind_cols(as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[1]][[1]] ,sd)))),
+                              as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[2]][[1]] ,sd)))),
+                              as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[3]][[1]] ,sd)))))
+  lvl1.table20sd <- bind_cols(as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[1]][[2]] ,sd)))),
+                              as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[2]][[2]] ,sd)))),
+                              as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[3]][[2]] ,sd)))))
+  lvl1.table30sd <- bind_cols(as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[1]][[3]] ,sd)))),
+                              as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[2]][[3]] ,sd)))),
+                              as.data.frame(sapply(1:3, function(i) cbind(sapply(table.disc.imp[[i]][[3]][[3]] ,sd)))))
+  
+  lvl1.tablesd <- bind_rows(lvl1.table10sd,lvl1.table20sd,lvl1.table30sd)
+  lvl1.tablesd <- apply(round(lvl1.tablesd, digits = 4), 2, function(i) paste("(", i, ")", sep=""))
+  
+  output <- NULL
+  for (i in 1:nrow(lvl1.tablemean)){
+    output <- rbind(output,lvl1.tablemean[i,])
+    output <- rbind(output, lvl1.tablesd[i,])
   }
-  
-  level1.table.sd <-   setNames(lapply(seq_along(miss.prob), function(p)
-    sapply(seq_along(table.disc.imp), function(i)
-      sapply(table.disc.imp[[i]][[p]][[1]], sd, na.omit =T))),nm=names(miss.prob))
-  
-  if (which.mc.error=="MCE"){
-    for (p in 1:length(miss.prob)){
-      for (m in 2:3){
-        level1.table.sd[[p]] <- cbind(level1.table.sd[[p]], 
-                                      setNames(lapply(seq_along(miss.prob), function(p)  
-                                        sapply(seq_along(table.disc.imp), function(i)
-                                          sapply(table.disc.imp[[i]][[p]][[m]], sd, na.omit =T))),nm=names(miss.prob))[[p]])
-      }
-    }  
-  } else if (which.mc.error=="MCVar"){
-    for (p in 1:length(miss.prob)){
-      for (m in 2:3){
-        level1.table.sd[[p]] <- cbind(level1.table.sd[[p]], 
-                                      setNames(lapply(seq_along(miss.prob), function(p)  
-                                        sapply(seq_along(table.disc.imp), function(i)
-                                          sapply(table.disc.imp[[i]][[p]][[m]], var, na.omit =T))),nm=names(miss.prob))[[p]])
-      }
-    }   
-  }
-  
-  for (p in 1:length(miss.prob)){
-    colnames(level1.table.sd[[p]]) <- rep(names(table.disc.imp),3)
-    level1.table.sd[[p]] <- apply(round(level1.table.sd[[p]], digits = 4), 2, function(i) paste("(", i, ")", sep=""))
-  }
-  
-  output <- list("0,1"=NULL,"0.2"=NULL,"0.3" = NULL)
-  for (p in 1:length(miss.prob)){
-    table.names <- NULL
-    table.empty <- rep("",length(discrete.imp.vars))
-    for (i in 1:nrow(level1.table[[p]])){
-      output[[p]] <- rbind(output[[p]], level1.table[[p]][i,])
-      table.names <- c(table.names,discrete.imp.vars[i])
-      output[[p]] <- rbind(output[[p]], level1.table.sd[[p]][i,])
-      table.names <- c(table.names,table.empty[i])
-    }
-    rownames(output[[p]]) <- table.names
-  }
+  rownames(output) <- rep(c(rep("Education", 2),rep("Superior", 2),rep("Comp. size", 2)),3)
+  colnames(output) <- rep(c("BN_Pi","BN_MBRC", "MICE"),3)
   return(output)
+}
+
+make.lvl2.table <- function(){
+  lvl2bn.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.bn[[1]][[p]])),
+                   sapply(seq_along(miss.prob), function(p) mean(lvl2.bn[[3]][[p]])),
+                   sapply(seq_along(miss.prob), function(p) mean(lvl2.bn[[2]][[p]])))
+  lvl2bn.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.bn[[1]][[p]])),
+                 sapply(seq_along(miss.prob), function(p) sd(lvl2.bn[[3]][[p]])),
+                 sapply(seq_along(miss.prob), function(p) sd(lvl2.bn[[2]][[p]])))
+  lvl2bn.table <- as.data.frame(round(rbind(lvl2bn.mean,lvl2bn.sd), digits = 5))
+  lvl2bn.table[2,] <- apply(round(lvl2bn.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
+  colnames(lvl2bn.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
+  
+  lvl2bnrc.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.nm5[[1]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.nm5[[3]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.nm5[[2]][[p]])))
+  lvl2bnrc.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.nm5[[1]][[p]])),
+                   sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.nm5[[3]][[p]])),
+                   sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.nm5[[2]][[p]])))
+  lvl2bnrc.table <- as.data.frame(round(rbind(lvl2bnrc.mean,lvl2bnrc.sd), digits = 5))
+  lvl2bnrc.table[2,] <- apply(round(lvl2bnrc.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
+  colnames(lvl2bnrc.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
+  
+  lvl2mice.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.mice[[1]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) mean(lvl2.mice[[3]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) mean(lvl2.mice[[2]][[p]])))
+  lvl2mice.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.mice[[1]][[p]])),
+                   sapply(seq_along(miss.prob), function(p) sd(lvl2.mice[[3]][[p]])),
+                   sapply(seq_along(miss.prob), function(p) sd(lvl2.mice[[2]][[p]])))
+  lvl2mice.table <- as.data.frame(round(rbind(lvl2mice.mean,lvl2mice.sd), digits = 5))
+  lvl2mice.table[2,] <- apply(round(lvl2mice.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
+  colnames(lvl2mice.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
+  
+  level2table <- rbind(lvl2bn.table,lvl2bnrc.table,lvl2mice.table)
+  return(level2table)
 }
 
 

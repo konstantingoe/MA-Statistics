@@ -250,7 +250,7 @@ miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 # }
 
 # save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
-load(paste(mypath, "data.RDA", sep = "/"))
+#load(paste(mypath, "data.RDA", sep = "/"))
 # load(paste(mypath, "bnrc_nmimp.RDA", sep = "/"))
 # 
 
@@ -296,7 +296,7 @@ load(paste(mypath, "data.RDA", sep = "/"))
 #            nm= names(miss.prob))), nm = miss.mech.vec)
 # 
 # save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
-load(paste(mypath, "bn.RDA", sep = "/"))
+#load(paste(mypath, "bn.RDA", sep = "/"))
 
 # print("Now things are getting serious!")
 # bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
@@ -307,38 +307,52 @@ load(paste(mypath, "bn.RDA", sep = "/"))
 # save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
 
-
- print("initiating now with 50 cycles through the chain... please let there be no errors!")
-# bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
+# Initiating BN_MBRC algorithm 
+# bnrc.nm50 <- setNames(lapply(1:length(miss.mech.vec), function(m)
 #           setNames(lapply(seq_along(miss.prob), function(p)
-#             future_lapply(future.seed = T, 1:k, function(l) bnrc.imp(bn=bn[[m]][[p]][[l]],
-#               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 5, returnfull = F))),
+#             future_lapply(future.seed = T, 1:k, function(l) bnrc.nomean(bn=bn[[m]][[p]][[l]],
+#               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 50, returnfull = F))),
 #                 nm= names(miss.prob))), nm = miss.mech.vec)
-#  print("Hurray, no errors!")
-#  save(bnrc, file = paste(mypath, "bnrcimp.RDA", sep = "/"))
+# save(bnrc.nm50, file = paste(mypath, "bnrc_nmimp50.RDA", sep = "/"))
 
-#print("Maybe this performs better")
-bnrc.nm50 <- setNames(lapply(1:length(miss.mech.vec), function(m)
-          setNames(lapply(seq_along(miss.prob), function(p)
-            future_lapply(future.seed = T, 1:k, function(l) bnrc.nomean(bn=bn[[m]][[p]][[l]],
-              data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 50, returnfull = F))),
-                nm= names(miss.prob))), nm = miss.mech.vec)
-print("Hurray, no errors!")
-save(bnrc.nm50, file = paste(mypath, "bnrc_nmimp50.RDA", sep = "/"))
+load(paste(mypath, "bnimp.RDA", sep = "/"))
+load(paste(mypath, "bnrc_nmimp50.RDA", sep = "/"))
+load(paste(mypath, "micedata.RDA", sep = "/"))
 
 continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
 discrete.imp.vars <- c("education", "superior", "compsize")
-print("starting ball divergense test")
+
+print("beginning with ball test")
+
+lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[m]][[p]][[l]], 
+     dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
+        nm= names(miss.prob))), nm = miss.mech.vec)
+print("bnimp ball is played")
 
 lvl2.bnrc.nm5 <- setNames(lapply(1:length(miss.mech.vec), function(m)
-  setNames(lapply(seq_along(miss.prob), function(p)
-    sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc.nm50[[m]][[p]][[l]],
-     dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth,
-       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc.nm50[[m]][[p]][[l]], 
+      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+        dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
+          nm= names(miss.prob))), nm = miss.mech.vec)
+
+print("bnrc ball is in goal")
+
+lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
+  setNames(lapply(seq_along(miss.prob), function(p) 
+    sapply(1:k, function(l) bd.test(x = dplyr::select(mice.imp.complete[[m]][[p]][[l]], 
+      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
+       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
         nm= names(miss.prob))), nm = miss.mech.vec)
 
-print("bnrc.nm5 ball is in goal")
+print("mice ball alea iacta est")
+
+save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
 save(lvl2.bnrc.nm5,file = paste(mypath,"bd_bnrc_nm5.RDA", sep = "/"))
+save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
 xxx
 #### Algorithm done
 
@@ -521,24 +535,12 @@ load(paste(mypath, "bnrcimp.RDA", sep = "/"))
 continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
 
 lvl1.bn <- ks.list(data = bn.imp)
-
-lvl1.bnrc <- ks.list(data = bnrc)
 lvl1.bnrc_nm <- ks.list(data = bnrc.nm50)
 lvl1.mice <- ks.list(data = mice.imp.complete)
 
-# setNames(lapply(1:length(miss.mech.vec), function(m)
-#   setNames(lapply(seq_along(miss.prob), function(p)
-#     sapply(lvl1.bn[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
-# setNames(lapply(1:length(miss.mech.vec), function(m)
-#   setNames(lapply(seq_along(miss.prob), function(p)
-#     sapply(lvl1.bnrc_nm[[m]][[p]], mean, na.omit =T) < sapply(lvl1.mice[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
-# setNames(lapply(1:length(miss.mech.vec), function(m)
-#   setNames(lapply(seq_along(miss.prob), function(p)
-#     sapply(lvl1.bnrc[[m]][[p]], mean, na.omit =T) < sapply(lvl1.bn[[m]][[p]], mean, na.omit =T)),nm=names(miss.prob))), nm = miss.mech.vec)
-
 #### Latex table representation:
 
-### MCAR table:
+### MCAR, MAR and MNAR table:
 
 mcartable <- mcarlvltbl(missmech = "MCAR")
 martable <-  mcarlvltbl(missmech = "MAR")
@@ -575,11 +577,11 @@ lvl1.discrete.mice <- misclass.error(data = mice.imp.complete)
 #### Latex Tables 1. level discrete vars
 
 table.disc.imp <- list("BN" = lvl1.discrete.bn, "BNRC" = lvl1.discrete.bnrc, "MICE" = lvl1.discrete.mice)
+
 lvl1.misclass <- make.lvl1.misclass.table()
 
-lvl1.desctabl <- rbind(lvl1.misclass$`0,1`,lvl1.misclass$`0.2`,lvl1.misclass$`0.3`)
-stargazer(lvl1.desctabl, digits = 4, title = "Comparison of BNimp and MICE recovering the true classification of discrete variables",
-          out = "level1disc.tex", colnames = T, notes = "Source: SOEP v36; Author's calculations. Misclassification rate mean value over 100 Monte Carlo draws. Monte Carlo Error in brackets")
+stargazer(lvl1.misclass, digits = 4, title = "Comparison of BNimp and MICE recovering the true classification of discrete variables",
+          out = "level1disc.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. MR mean value over 500 Monte Carlo draws. Monte Carlo Error in brackets")
 
 ##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
 
@@ -593,7 +595,7 @@ lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
     sapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[m]][[p]][[l]], 
      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
-      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
         nm= names(miss.prob))), nm = miss.mech.vec)
 print("bnimp ball is played")
 
@@ -601,7 +603,7 @@ lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
     sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc[[m]][[p]][[l]], 
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
-         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+         dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
           nm= names(miss.prob))), nm = miss.mech.vec)
 
 print("bnrc ball is in goal")
@@ -610,7 +612,7 @@ lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
     sapply(1:k, function(l) bd.test(x = dplyr::select(mice.imp.complete[[m]][[p]][[l]], 
      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
-      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))$statistic)),
+      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
         nm= names(miss.prob))), nm = miss.mech.vec)
 
 print("mice ball alea iacta est")
@@ -624,48 +626,54 @@ print("All done, congratulations! Now finish you MA and stop watching youtube vi
 load("bd_bn.RDA")
 load("bd_bnrc.RDA")
 load("bd_bnrc_nm.RDA")
+load("bd_bnrc_nm5.RDA")
 load("bd_mice.RDA")
 
 #### plotting mean over repetitions:
 
- bn.mean <- summ.reps(data = lvl2.bn)
- bnrc.mean <- summ.reps(data = lvl2.bnrc)
- bnrc.mean.nm <- summ.reps(data = lvl2.bnrc.nm)
- mice.mean <- summ.reps(data = lvl2.mice)
- reps <- 1:k
+level2table <- make.lvl2.table()
 
-#try boxplot:
-boxplotdata <- setNames(lapply(1:length(miss.mech.vec), function(m)
-                setNames(lapply(seq_along(miss.prob), function(p)
-                  data.frame(ball_d = c(bn.mean[[m]][[p]], bnrc.mean.nm[[m]][[p]],mice.mean[[m]][[p]]),
-                             Method = factor(c(rep(1,k), rep(2,k), rep(3,k)), ordered = F, labels= c("BN.imp", "BNRC.imp", "MICE.imp")))), 
-                             nm = names(miss.prob))), nm = miss.mech.vec)
+stargazer(level2table, title = "Ball divergence between BN imputation routines and MICE",
+          out = "level2.tex", colnames = T, summary = F, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. BD mean value over 500 Monte Carlo draws. Monte Carlo Error in brackets")
 
 
-box <-  setNames(lapply(1:length(miss.mech.vec), function(m)
-        lapply(seq_along(miss.prob), function(p)
-        ggplot(boxplotdata[[m]][[p]], aes(x=Method, y=ball_d)) +
-        geom_boxplot(aes(group=Method, color = Method)) +
-        xlab("") +
-        scale_y_continuous(limits = c(0, .004)) +  
-        theme(legend.position = "bottom") +
-        ylab("Ball divergence"))), nm = miss.mech.vec) 
-        #ggtitle(paste("Statistical constistency given", 10*p ,"% missing occurance")))
+
+
+miss.mech.vec.new <- c("MCAR", "MAR", "MNAR")
+labelsmath <- c("$BN_\\Pi$", "$BN_{MBRC}$", "MICE")
+labl <- c("BN_\u03a0", "BN_MBRC", "MICE")
+
+#options(tz="CET")
+boxpd <- setNames(lapply(c(1,3,2), function(m)
+                    setNames(lapply(seq_along(miss.prob), function(p)
+                    data_frame(BD = c(lvl2.bn[[m]][[p]],lvl2.bnrc.nm5[[m]][[p]],lvl2.mice[[m]][[p]]),
+                    Method = factor(c(rep(1, k), rep(2, k), rep(3, k)), ordered = F, labels= labl))),nm = names(miss.prob))),
+                    nm = miss.mech.vec.new)
+#tikz(file = "boxplot_level2.tex", width = 6, height = 5)
+box <-    setNames(lapply(1:3, function(m)
+          setNames(lapply(seq_along(miss.prob), function(p)
+          ggplot(boxpd[[m]][[p]], aes(x=Method, y=BD)) +
+          geom_boxplot(aes(group=Method, color = Method)) +
+          xlab("") +
+          scale_y_continuous(limits = c(0, .004)) +  
+          theme(legend.position = "none") +
+          ylab("Ball divergence") +
+          ggtitle(paste("BD", 10*p,"% missings and", miss.mech.vec.new[m], "data")) +
+          theme(plot.title = element_text(size = rel(1), vjust = 0), 
+                  axis.title = element_text(size = rel(0.8)),
+                  axis.title.y = element_text( vjust=2 ),
+                  axis.title.x = element_text( vjust=-0.5))),
+          nm = names(miss.prob))),nm = miss.mech.vec.new)
+
 
 plot_grid(box[[1]][[1]], box[[1]][[2]], box[[1]][[3]],
           box[[2]][[1]], box[[2]][[2]], box[[2]][[3]],
-          box[[3]][[1]], box[[3]][[2]], box[[3]][[3]],
-          labels = c("10% missing", "20% missing", "30% missing"), ncol = 3, nrow = 3)
+          box[[3]][[1]], box[[3]][[2]], box[[3]][[3]], ncol = 3, nrow = 3)
+#dev.off()
 
 ggsave("boxplot_level2.pdf")
 
 
-#setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bn[[m]]) < mean(lvl2.mice[[m]])), nm = miss.mech.vec)
-#setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bnrc[[m]]) < mean(lvl2.mice[[m]])), nm = miss.mech.vec)
-
-#setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bn[[m]])), nm = miss.mech.vec)
-#setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.mice[[m]])), nm = miss.mech.vec)
-#setNames(lapply(1:length(miss.mech.vec), function(m) mean(lvl2.bnrc[[m]])), nm = miss.mech.vec)
 
 
 ### Make table for presentation:
