@@ -746,38 +746,72 @@ make.lvl1.misclass.table <- function(){
   return(output)
 }
 
+### extract bd statistic and corresponding p-value from output
+# a_n = a_1 + d(n-1), d = 3
+
+lvl2.extract <- function(data=data){
+  bd.list <- list("MCAR" = list("0.1" = NULL, "0.2" = NULL, "0.3" = NULL), "MNAR" = list("0.1" = NULL, "0.2" = NULL, "0.3" = NULL), "MAR" = list("0.1" = NULL, "0.2" = NULL, "0.3" = NULL))
+  p.list <-  list("MCAR" = list("0.1" = NULL, "0.2" = NULL, "0.3" = NULL), "MNAR" = list("0.1" = NULL, "0.2" = NULL, "0.3" = NULL), "MAR" = list("0.1" = NULL, "0.2" = NULL, "0.3" = NULL))
+  for (m in 1:length(miss.mech.vec)){
+    for (p in 1:length(miss.prob)){
+      v <- 1
+      w <- 2
+      for (i in 1:k){
+        bd.list[[m]][[p]][i] <- data[[m]][[p]][[v]]
+        p.list[[m]][[p]][i] <- data[[m]][[p]][[w]]
+        v <- 1 + 3*(i-1)
+        w <- 2 + 3*(i-1)
+      }
+    }
+  }
+  return(list("bd"= bd.list, "p"=p.list))
+}
+
 make.lvl2.table <- function(){
-  lvl2bn.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.bn[[1]][[p]])),
-                   sapply(seq_along(miss.prob), function(p) mean(lvl2.bn[[3]][[p]])),
-                   sapply(seq_along(miss.prob), function(p) mean(lvl2.bn[[2]][[p]])))
-  lvl2bn.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.bn[[1]][[p]])),
-                 sapply(seq_along(miss.prob), function(p) sd(lvl2.bn[[3]][[p]])),
-                 sapply(seq_along(miss.prob), function(p) sd(lvl2.bn[[2]][[p]])))
-  lvl2bn.table <- as.data.frame(round(rbind(lvl2bn.mean,lvl2bn.sd), digits = 5))
-  lvl2bn.table[2,] <- apply(round(lvl2bn.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
-  colnames(lvl2bn.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
-  
-  lvl2bnrc.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.nm5[[1]][[p]])),
-                     sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.nm5[[3]][[p]])),
-                     sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.nm5[[2]][[p]])))
-  lvl2bnrc.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.nm5[[1]][[p]])),
-                   sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.nm5[[3]][[p]])),
-                   sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.nm5[[2]][[p]])))
-  lvl2bnrc.table <- as.data.frame(round(rbind(lvl2bnrc.mean,lvl2bnrc.sd), digits = 5))
-  lvl2bnrc.table[2,] <- apply(round(lvl2bnrc.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
-  colnames(lvl2bnrc.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
-  
-  lvl2mice.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.mice[[1]][[p]])),
-                     sapply(seq_along(miss.prob), function(p) mean(lvl2.mice[[3]][[p]])),
-                     sapply(seq_along(miss.prob), function(p) mean(lvl2.mice[[2]][[p]])))
-  lvl2mice.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.mice[[1]][[p]])),
-                   sapply(seq_along(miss.prob), function(p) sd(lvl2.mice[[3]][[p]])),
-                   sapply(seq_along(miss.prob), function(p) sd(lvl2.mice[[2]][[p]])))
-  lvl2mice.table <- as.data.frame(round(rbind(lvl2mice.mean,lvl2mice.sd), digits = 5))
-  lvl2mice.table[2,] <- apply(round(lvl2mice.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
-  colnames(lvl2mice.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
-  
-  level2table <- rbind(lvl2bn.table,lvl2bnrc.table,lvl2mice.table)
+    lvl2bn.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.bn.bd$bd[[1]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) mean(lvl2.bn.bd$bd[[3]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) mean(lvl2.bn.bd$bd[[2]][[p]])))
+    lvl2bn.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.bn.bd$bd[[1]][[p]])),
+                   sapply(seq_along(miss.prob), function(p) sd(lvl2.bn.bd$bd[[3]][[p]])),
+                   sapply(seq_along(miss.prob), function(p) sd(lvl2.bn.bd$bd[[2]][[p]])))
+    lvl2bn.power <- c(sapply(seq_along(miss.prob), function(p) sum(lvl2.bn.bd$p[[1]][[p]] > .05)/k),
+                      sapply(seq_along(miss.prob), function(p)  sum(lvl2.bn.bd$p[[3]][[p]] > .05)/k),
+                      sapply(seq_along(miss.prob), function(p)  sum(lvl2.bn.bd$p[[2]][[p]] > .05)/k))
+    
+    lvl2bn.table <- as.data.frame(round(rbind(lvl2bn.mean,lvl2bn.sd, lvl2bn.power), digits = 5))
+    lvl2bn.table[2,] <- apply(round(lvl2bn.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
+    colnames(lvl2bn.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
+    
+    lvl2bnrc.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.bd$bd[[1]][[p]])),
+                       sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.bd$bd[[3]][[p]])),
+                       sapply(seq_along(miss.prob), function(p) mean(lvl2.bnrc.bd$bd[[2]][[p]])))
+    lvl2bnrc.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.bd$bd[[1]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.bd$bd[[3]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) sd(lvl2.bnrc.bd$bd[[2]][[p]])))
+    lvl2bnrc.power <- c(sapply(seq_along(miss.prob), function(p) sum(lvl2.bnrc.bd$p[[1]][[p]] > .05)/k),
+                        sapply(seq_along(miss.prob), function(p)  sum(lvl2.bnrc.bd$p[[3]][[p]] > .05)/k),
+                        sapply(seq_along(miss.prob), function(p)  sum(lvl2.bnrc.bd$p[[2]][[p]] > .05)/k))
+    
+    lvl2bnrc.table <- as.data.frame(round(rbind(lvl2bnrc.mean,lvl2bnrc.sd, lvl2bnrc.power), digits = 5))
+    lvl2bnrc.table[2,] <- apply(round(lvl2bnrc.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
+    colnames(lvl2bnrc.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
+    
+    lvl2mice.mean <- c(sapply(seq_along(miss.prob), function(p) mean(lvl2.mice.bd$bd[[1]][[p]])),
+                       sapply(seq_along(miss.prob), function(p) mean(lvl2.mice.bd$bd[[3]][[p]])),
+                       sapply(seq_along(miss.prob), function(p) mean(lvl2.mice.bd$bd[[2]][[p]])))
+    lvl2mice.sd <- c(sapply(seq_along(miss.prob), function(p) sd(lvl2.mice.bd$bd[[1]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) sd(lvl2.mice.bd$bd[[3]][[p]])),
+                     sapply(seq_along(miss.prob), function(p) sd(lvl2.mice.bd$bd[[2]][[p]])))
+    lvl2mice.power <- c(sapply(seq_along(miss.prob), function(p) sum(lvl2.mice.bd$p[[1]][[p]] > .05)/k),
+                        sapply(seq_along(miss.prob), function(p)  sum(lvl2.mice.bd$p[[3]][[p]] > .05)/k),
+                        sapply(seq_along(miss.prob), function(p)  sum(lvl2.mice.bd$p[[2]][[p]] > .05)/k))
+    
+    lvl2mice.table <- as.data.frame(round(rbind(lvl2mice.mean,lvl2mice.sd,lvl2mice.power), digits = 5))
+    lvl2mice.table[2,] <- apply(round(lvl2mice.table[2,], digits = 5), 2, function(i) paste("(", i, ")", sep=""))
+    colnames(lvl2mice.table) <- c(rep("MCAR",3), rep("MAR",3), rep("MNAR",3))
+    
+    level2table <- rbind(lvl2bn.table,lvl2bnrc.table,lvl2mice.table)
+    
   return(level2table)
 }
 

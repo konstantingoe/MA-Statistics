@@ -624,19 +624,19 @@ save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
 print("All done, congratulations! Now finish you MA and stop watching youtube video!")
 
 load("bd_bn.RDA")
-load("bd_bnrc.RDA")
-load("bd_bnrc_nm.RDA")
 load("bd_bnrc_nm5.RDA")
 load("bd_mice.RDA")
 
 #### plotting mean over repetitions:
 
+lvl2.bn.bd <- lvl2.extract(data = lvl2.bn)
+lvl2.bnrc.bd <- lvl2.extract(data = lvl2.bnrc.nm5)
+lvl2.mice.bd <- lvl2.extract(data = lvl2.mice)
+
 level2table <- make.lvl2.table()
 
 stargazer(level2table, title = "Ball divergence between BN imputation routines and MICE",
           out = "level2.tex", colnames = T, summary = F, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. BD mean value over 500 Monte Carlo draws. Monte Carlo Error in brackets")
-
-
 
 
 miss.mech.vec.new <- c("MCAR", "MAR", "MNAR")
