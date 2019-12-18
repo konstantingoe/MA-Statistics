@@ -227,166 +227,86 @@ miss.mechanism2 <- list("MAR" = make.mar)
 miss.mech.vec <- c("MCAR", "MNAR", "MAR")
 miss.prob <- list("0.1" = .1, "0.2" = .2, "0.3" = .3)
 
-# mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
-#                       setNames(lapply(seq_along(miss.prob), function(p)
-#                         lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
-# mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
-#                     setNames(lapply(seq_along(miss.prob), function(p)
-#                       lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
-# 
-# 
-# 
-# for (m in 1:length(miss.mech.vec)){
-#   for (p in 1:length(miss.prob)){
-#     for (l in 1:k) {
-#       for (i in 1:length(lnrecode.vars)){
-#         mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99,
-#                                                      -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
-#                                                      mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
-#       }
-#       mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
-#     }
-#   }
-# }
+mi.multiple.imp <-  setNames(lapply(seq_along(miss.mechanism), function(m)
+                      setNames(lapply(seq_along(miss.prob), function(p)
+                        lapply(1:k, function(l) miss.mechanism[[m]](multiple.imp, miss.prob=miss.prob[[p]], cond = cond.vector))), nm= names(miss.prob))), nm=names(miss.mechanism))
+mi.multiple.imp <- c(mi.multiple.imp, setNames(lapply(seq_along(miss.mechanism2), function(m)
+                    setNames(lapply(seq_along(miss.prob), function(p)
+                      lapply(1:k, function(l) miss.mechanism2[[m]](multiple.imp, miss.prob = miss.prob[[p]], cond = cond.vector, x.vars = x.vars))), nm= names(miss.prob))), nm=names(miss.mechanism2)))
 
-# save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
+
+
+for (m in 1:length(miss.mech.vec)){
+  for (p in 1:length(miss.prob)){
+    for (l in 1:k) {
+      for (i in 1:length(lnrecode.vars)){
+        mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] <- ifelse(mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]] == -99,
+                                                     -log(mean(1+multiple.imp[,rerecode.vars[i]], na.rm = T))/log(sd(1+multiple.imp[,rerecode.vars[i]], na.rm =T)),
+                                                     mi.multiple.imp[[m]][[p]][[l]][,lnrecode.vars[i]])
+      }
+      mi.multiple.imp[[m]][[p]][[l]] <- select(mi.multiple.imp[[m]][[p]][[l]], -c(recode.vars, "orbis_wealth", "sqmtrs", "hhnetto"))
+    }
+  }
+}
+
+save(mi.multiple.imp, file = paste(mypath, "data.RDA", sep = "/"))
 #load(paste(mypath, "data.RDA", sep = "/"))
-# load(paste(mypath, "bnrc_nmimp.RDA", sep = "/"))
-# 
 
-#load("data.RDA")
-# load("structure.RDA")
-# load("bn.RDA")
-# load("bnimp.RDA")
-# load("bnrcimp.RDA")
-# load("bnrc_nmimp.RDA")
-# load("bnrc_nmimp50.RDA")
-# load("mice.RDA")
-# load("micedata.RDA")
-# 
-# sapply(1:k, function(i) sum(is.na(bnrc$MCAR$`0.3`[[i]])))
+#### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
+                      #### BN imputations  ####
+#### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
 
-# mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#                   setNames(lapply(seq_along(miss.prob), function(p)
-#                     future_lapply(future.seed = T, 1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
-#                           fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
-#                            nm= names(miss.prob))), nm = miss.mech.vec)
+mi.structure <- setNames(lapply(1:length(miss.mech.vec), function(m)
+                  setNames(lapply(seq_along(miss.prob), function(p)
+                    future_lapply(future.seed = T, 1:k, function(l) structural.em(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], maximize = "hc",
+                          fit = "mle", maximize.args = list(score = "bic-cg", whitelist = whitelist) , impute = "bayes-lw", max.iter = 2, return.all = T))),
+                           nm= names(miss.prob))), nm = miss.mech.vec)
 
-#save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
+save(mi.structure, file = paste(mypath, "structure.RDA", sep = "/"))
 #load(paste(mypath, "structure.RDA", sep = "/"))
 
 #dag.compare <- lapply(1:length(miss.mech.vec), function(m) lapply(1:length(miss.prob), function(p) 
 #  sapply(1:k, function(l) unlist(bnlearn::compare(truth.structure, mi.structure[[m]][[p]][[l]]$dag)))))
 
-# mi.structure.rev <- mi.structure
-#  for (m in 1:length(miss.mech.vec)){
-#   for (p in 1:length(miss.prob)){
-#     for (l in 1:k){
-#       rel_label <- miss_var_summary(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], order = T)
-#       reliability <- rel_label$pct_miss
-#       names(reliability) <- rel_label$variable
-#       arc.reversal(object = mi.structure.rev[[m]][[p]][[l]]$dag)
-#     }
-#   }
-# }
-# 
-# bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
-#         setNames(lapply(seq_along(miss.prob), function(p)
-#           future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))),
-#            nm= names(miss.prob))), nm = miss.mech.vec)
-# 
-# save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
+mi.structure.rev <- mi.structure
+ for (m in 1:length(miss.mech.vec)){
+  for (p in 1:length(miss.prob)){
+    for (l in 1:k){
+      rel_label <- miss_var_summary(mi.multiple.imp[[m]][[p]][[l]][,names(mi.multiple.imp[[m]][[p]][[l]]) != "pid"], order = T)
+      reliability <- rel_label$pct_miss
+      names(reliability) <- rel_label$variable
+      arc.reversal(object = mi.structure.rev[[m]][[p]][[l]]$dag)
+    }
+  }
+}
+ 
+bn <-  setNames(lapply(1:length(miss.mech.vec), function(m)
+        setNames(lapply(seq_along(miss.prob), function(p)
+          future_lapply(future.seed = T, 1:k, function(l) bn.fit(mi.structure[[m]][[p]][[l]]$dag, mi.structure[[m]][[p]][[l]]$imputed, method = "mle"))),
+           nm= names(miss.prob))), nm = miss.mech.vec)
+
+save(bn, file = paste(mypath, "bn.RDA", sep = "/"))
 #load(paste(mypath, "bn.RDA", sep = "/"))
 
-# print("Now things are getting serious!")
-# bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#             setNames(lapply(seq_along(miss.prob), function(p)
-#               future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
-#                 dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
-# print("bn.imp done without errors!!!!!!!")
-# save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
+bn.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+            setNames(lapply(seq_along(miss.prob), function(p)
+              future_lapply(future.seed = T, 1:k, function(l) bn.parents.imp(bn=bn[[m]][[p]][[l]], dag = mi.structure.rev[[m]][[p]][[l]]$dag,
+                dat=mi.multiple.imp[[m]][[p]][[l]]))), nm=names(miss.prob))),nm=miss.mech.vec)
 
+save(bn.imp, file = paste(mypath, "bnimp.RDA", sep = "/"))
 
 # Initiating BN_MBRC algorithm 
-# bnrc.nm50 <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#           setNames(lapply(seq_along(miss.prob), function(p)
-#             future_lapply(future.seed = T, 1:k, function(l) bnrc.nomean(bn=bn[[m]][[p]][[l]],
-#               data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 50, returnfull = F))),
-#                 nm= names(miss.prob))), nm = miss.mech.vec)
-# save(bnrc.nm50, file = paste(mypath, "bnrc_nmimp50.RDA", sep = "/"))
-
-load(paste(mypath, "bnimp.RDA", sep = "/"))
-load(paste(mypath, "bnrc_nmimp50.RDA", sep = "/"))
-load(paste(mypath, "micedata.RDA", sep = "/"))
-
-continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
-discrete.imp.vars <- c("education", "superior", "compsize")
-
-print("beginning with ball test")
-
-lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
-  setNames(lapply(seq_along(miss.prob), function(p) 
-    sapply(1:k, function(l) bd.test(x = dplyr::select(bn.imp[[m]][[p]][[l]], 
-     dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
-       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
-        nm= names(miss.prob))), nm = miss.mech.vec)
-print("bnimp ball is played")
-
-lvl2.bnrc.nm5 <- setNames(lapply(1:length(miss.mech.vec), function(m)
-  setNames(lapply(seq_along(miss.prob), function(p) 
-    sapply(1:k, function(l) bd.test(x = dplyr::select(bnrc.nm50[[m]][[p]][[l]], 
-      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
-        dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
-          nm= names(miss.prob))), nm = miss.mech.vec)
-
-print("bnrc ball is in goal")
-
-lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
-  setNames(lapply(seq_along(miss.prob), function(p) 
-    sapply(1:k, function(l) bd.test(x = dplyr::select(mice.imp.complete[[m]][[p]][[l]], 
-      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
-       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
-        nm= names(miss.prob))), nm = miss.mech.vec)
-
-print("mice ball alea iacta est")
-
-save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
-save(lvl2.bnrc.nm5,file = paste(mypath,"bd_bnrc_nm5.RDA", sep = "/"))
-save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
-xxx
-#### Algorithm done
-
-# Bayesian Network Reliability Chain (BNRC) algorithm:
-# Given Structure G_t retrieve Markov blanket of node X_t that is the most reliable, meaning where there is the lowest missing 
-# percentage. Whenever X_t is missing draw value from the conditional distribution, that is, conditional on the Markov blanket set. 
-# Should one variable in the Markov blanket set be missing, give that observation the mean as an initial value. 
-# This way, fully impute X_t. 
-
-# Now, continue to the nex least reliable node X_t+1 and do the same. Should X_t be included in the Markov blanket set of X_t+1
-# do not use the mean, but the just imputed values. Should there be a variable in the Markov blanket set that is missing and has not yet been 
-# imputed, ignore those in the first round... hopefully . This way, proceed up the reliability order until all nodes are filled in. 
-# More reliable variables will thus more likely have missing observations in der Markov parent set, while less reliable ones
-# have less missings in their conditioning set. 
-
-# This completes the first iteration of the chain. For the second iteration, go back to the first node X_t set the initially imputed values back
-# to missing and impute them by drawing from the Markov blanket conditional distribution. Now we don't need to use any mean imputation because the Markov blanket
-# only consists of complete variables from the previous iteration. Go through the reliability order, everytime updating the previously generated imputed values by the
-# new ones. By the end of this iteration, all nodes are complete and none of them directly depends on the mean anymore. 
-
-# Now got back the first node X_t and repeat this procedure, that is dropping all that were missing initially and imputing given the
-# Markov blanket given the imputed values from the previous iteration. 
-
-# Repeat going through this chain frequently enough so that the imputed values are (almost surely) independent from the initial mean imputation.
-# find some stopping criterion 
-# this could also be thought of as a bootstrap case... 
-
-
+bnrc.nm50 <- setNames(lapply(1:length(miss.mech.vec), function(m)
+          setNames(lapply(seq_along(miss.prob), function(p)
+            future_lapply(future.seed = T, 1:k, function(l) bnrc.nomean(bn=bn[[m]][[p]][[l]],
+              data=mi.multiple.imp[[m]][[p]][[l]], cnt.break = 50, returnfull = F))),
+                nm= names(miss.prob))), nm = miss.mech.vec)
+save(bnrc.nm50, file = paste(mypath, "bnrc_nmimp50.RDA", sep = "/"))
 
 
 #### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
                               #### MICE ####
 #### ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ####
-## the reason why mice performs poorly is the inability to follow logical constraints... sometimes "0" values will be impuated
 
 for (m in 1:length(miss.mech.vec)){
   for (p in 1:length(miss.prob)){
@@ -406,8 +326,7 @@ for (m in 1:length(miss.mech.vec)){
   rel_label <- miss_var_summary(mi.multiple.imp[[m]][[1]][[1]][,names(mi.multiple.imp[[m]][[1]][[1]]) != "pid"], order = T)
   reliability <- rel_label$pct_miss
   names(reliability) <- rel_label$variable
-  #pred[,"pid"] <- 0
-  
+
   indepvars.all <- c("age", "sex", "ost", "bik", "wuma7", "employed", "inherit_filter",
                      "citizen", "famstd", "gborn", "kidsu16", "partner", "saving", "lnsaving", 
                      "lninheritance", "lnhhnetto", "compsize",
@@ -420,7 +339,6 @@ for (m in 1:length(miss.mech.vec)){
     pred[miss[i], indepvars.all[indepvars.all != miss[i]]] <- 1
   }
   pred["superior","employed"] <- 0
-  #pred[lnwealthvars, c("lnorbis",filters)] <- 1
   pred[lnwealthvars, c("lnorbis")] <- 1
   
   # more variables for residence variables:
@@ -436,7 +354,7 @@ for (m in 1:length(miss.mech.vec)){
   pred["lninheritance", c("lntangibles", "lnresidence", "lnestate")] <- 1
   pred["lnbuilding", c(indepvars.residence, "lnresidence", "lnestate")] <- 1
   
-  #### specify possible range for logical constraints
+  #### specify possible range for logical constraints: Has to be hardcoded
   post <- make.post(mi.multiple.imp[[m]][[1]][[1]])
   
   #post["lnresidence"]      <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(min(filter(mi.multiple.imp[[m]][[p]][[1]], owner==1)$lnresidence, na.rm=T), Inf))"
@@ -486,32 +404,10 @@ for (m in 1:length(miss.mech.vec)){
   pred.mice[[m]] <- pred
 }
 
-
-print("Starting with MCAR")
-mice.imp1 <- setNames(lapply(seq_along(miss.prob), function(p) 
-              future_lapply(future.seed = T, 1:500, function(l) mice(mi.multiple.imp[[1]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[1]], post = post.mice[[1]], print=F, m=1))),
-                nm=names(miss.prob))
-print("Finished MCAR with no errors")
-length(mice.imp1[[1]][[1]])
-print("Starting with MNAR")
-mice.imp2 <- setNames(lapply(seq_along(miss.prob), function(p) 
-              future_lapply(future.seed = T, 1:500, function(l) mice(mi.multiple.imp[[2]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[2]], post = post.mice[[2]], print=F, m=1))),
-                nm=names(miss.prob))
-print("Finished MNAR with no errors")
-length(mice.imp2[[1]][[1]])
-print("Starting with MAR")
-mice.imp3 <- setNames(lapply(seq_along(miss.prob), function(p) 
-              future_lapply(future.seed = T, 1:500, function(l) mice(mi.multiple.imp[[3]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[3]], post = post.mice[[3]], print=F, m=1))),
-                nm=names(miss.prob))
-print("Finished MAR with no errors")
-length(mice.imp3[[1]][[1]])
-
-mice.imp <- list("MCAR"=mice.imp1, "MNAR" = mice.imp2, "MAR" = mice.imp3)
-
-# mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
-#               setNames(lapply(seq_along(miss.prob), function(p) 
-#                 future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[m]], post = post.mice[[m]], print=F, m=1))),
-#                   nm=names(miss.prob))), nm=miss.mech.vec)
+mice.imp <- setNames(lapply(1:length(miss.mech.vec), function(m)
+              setNames(lapply(seq_along(miss.prob), function(p)
+                future_lapply(future.seed = T, 1:k, function(l) mice(mi.multiple.imp[[m]][[p]][[l]], maxit = 15, predictorMatrix = pred.mice[[m]], post = post.mice[[m]], print=F, m=1))),
+                  nm=names(miss.prob))), nm=miss.mech.vec)
 
 mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
                       setNames(lapply(seq_along(miss.prob), function(p) 
@@ -522,16 +418,14 @@ mice.imp.complete <- setNames(lapply(1:length(miss.mech.vec), function(m)
 save(mice.imp, file = paste(mypath,"mice.RDA", sep = "/"))
 save(mice.imp.complete, file = paste(mypath,"micedata.RDA", sep = "/"))
 
-print("MICE done!")
-#### trying to solve the nearest neighbor problem... post processing?
-#Another alternative is to split the data into two parts, and specify different a predictor matrix in each. You can combine the mids objects by rbind.
-# the way would be to define a "custom made" pmm function where structural zeroes are not considered in the pmm algorithm!
+#load(paste(mypath, "bnimp.RDA", sep = "/"))
+#äload(paste(mypath, "bnrcimp.RDA", sep = "/"))
 
-load(paste(mypath, "bnimp.RDA", sep = "/"))
-load(paste(mypath, "bnrcimp.RDA", sep = "/"))
 
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 ##### 1st. Levels of Statistical Consistency: continuous vars ####
-# 
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
+
 continuous.imp.vars <- c(lnrecode.vars, "lnhhnetto")
 
 lvl1.bn <- ks.list(data = bn.imp)
@@ -555,19 +449,10 @@ stargazer(martable[1:36,], title = "Comparison of BN algorithms and MICE recover
 stargazer(mnartable[1:36,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MNAR data",
           out = "level1mnar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
 
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
+##### 1st. Levels of Statistical Consistency: discrete vars ####
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 
-# ##### 2nd. Levels of Statistical Consistency: continuous vars####
-# 
-# # potentially leave out... will do the same with more covariates later:
-# #lvl2.cont.bn <- bd.cont(data = bn.imp)
-# #lvl2.cont.bnrc <- bd.cont(data = bnrc)
-# #lvl2.cont.mice <- bd.cont(data = mice.imp.complete)
-# 
-# #lapply(1:length(miss.mech.vec), function(m) mean(lvl2.cont.bn[[m]])<mean(lvl2.cont.mice[[m]]))
-# #lapply(1:length(miss.mech.vec), function(m) mean(lvl2.cont.bnrc[[m]])<mean(lvl2.cont.bn[[m]]))
-# 
-# ##### 1st. Levels of Statistical Consistency: discrete vars ####
-# 
 discrete.imp.vars <- c("education", "superior", "compsize")
 
 lvl1.discrete.bn <- misclass.error(data = bn.imp)
@@ -583,13 +468,12 @@ lvl1.misclass <- make.lvl1.misclass.table()
 stargazer(lvl1.misclass, digits = 4, title = "Comparison of BNimp and MICE recovering the true classification of discrete variables",
           out = "level1disc.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. MR mean value over 500 Monte Carlo draws. Monte Carlo Error in brackets")
 
-##### 1st. Levels of Statistical Consistency: discrete and continuous vars ####
 
-#lvl2.bn <- bd.full(data=bn.imp)
-#lvl2.bnrc <- bd.full(data=bnrc)
-#lvl2.mice <- bd.full(data=mice.imp.complete)
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
+##### 2nd. Levels of Statistical Consistency: discrete and continuous vars ####
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 
-print("beginning with ball test")
+print("beginning with BD test")
 
 lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
@@ -597,7 +481,6 @@ lvl2.bn <- setNames(lapply(1:length(miss.mech.vec), function(m)
      dplyr::one_of(continuous.imp.vars, discrete.imp.vars)), y = dplyr::select(truth, 
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
         nm= names(miss.prob))), nm = miss.mech.vec)
-print("bnimp ball is played")
 
 lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
@@ -606,8 +489,6 @@ lvl2.bnrc <- setNames(lapply(1:length(miss.mech.vec), function(m)
          dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
           nm= names(miss.prob))), nm = miss.mech.vec)
 
-print("bnrc ball is in goal")
-
 lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
   setNames(lapply(seq_along(miss.prob), function(p) 
     sapply(1:k, function(l) bd.test(x = dplyr::select(mice.imp.complete[[m]][[p]][[l]], 
@@ -615,41 +496,35 @@ lvl2.mice <- setNames(lapply(1:length(miss.mech.vec), function(m)
       dplyr::one_of(continuous.imp.vars, discrete.imp.vars)))[["complete.info"]])),
         nm= names(miss.prob))), nm = miss.mech.vec)
 
-print("mice ball alea iacta est")
-
 save(lvl2.bn,file = paste(mypath,"bd_bn.RDA", sep = "/"))
 save(lvl2.bnrc,file = paste(mypath,"bd_bnrc.RDA", sep = "/"))
 save(lvl2.mice,file = paste(mypath,"bd_mice.RDA", sep = "/"))
 
-print("All done, congratulations! Now finish you MA and stop watching youtube video!")
+# load("bd_bn.RDA")
+# load("bd_bnrc_nm5.RDA")
+# load("bd_mice.RDA")
 
-load("bd_bn.RDA")
-load("bd_bnrc_nm5.RDA")
-load("bd_mice.RDA")
-
-#### plotting mean over repetitions:
+#### retrieveing mean and sd over repetitions:
 
 lvl2.bn.bd <- lvl2.extract(data = lvl2.bn)
 lvl2.bnrc.bd <- lvl2.extract(data = lvl2.bnrc.nm5)
 lvl2.mice.bd <- lvl2.extract(data = lvl2.mice)
 
+#### make latex table
 level2table <- make.lvl2.table()
-
 stargazer(level2table, title = "Ball divergence between BN imputation routines and MICE",
           out = "level2.tex", colnames = T, summary = F, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. BD mean value over 500 Monte Carlo draws. Monte Carlo Error in brackets")
 
-
+### plot boxplots
 miss.mech.vec.new <- c("MCAR", "MAR", "MNAR")
 labelsmath <- c("$BN_\\Pi$", "$BN_{MBRC}$", "MICE")
 labl <- c("BN_\u03a0", "BN_MBRC", "MICE")
 
-#options(tz="CET")
 boxpd <- setNames(lapply(c(1,3,2), function(m)
                     setNames(lapply(seq_along(miss.prob), function(p)
                     data_frame(BD = c(lvl2.bn[[m]][[p]],lvl2.bnrc.nm5[[m]][[p]],lvl2.mice[[m]][[p]]),
                     Method = factor(c(rep(1, k), rep(2, k), rep(3, k)), ordered = F, labels= labl))),nm = names(miss.prob))),
                     nm = miss.mech.vec.new)
-#tikz(file = "boxplot_level2.tex", width = 6, height = 5)
 box <-    setNames(lapply(1:3, function(m)
           setNames(lapply(seq_along(miss.prob), function(p)
           ggplot(boxpd[[m]][[p]], aes(x=Method, y=BD)) +
@@ -669,23 +544,20 @@ box <-    setNames(lapply(1:3, function(m)
 plot_grid(box[[1]][[1]], box[[1]][[2]], box[[1]][[3]],
           box[[2]][[1]], box[[2]][[2]], box[[2]][[3]],
           box[[3]][[1]], box[[3]][[2]], box[[3]][[3]], ncol = 3, nrow = 3)
-#dev.off()
 
 ggsave("boxplot_level2.pdf")
 
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
+                            ##### Analysis done ####
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 
 
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
+                          ##### Additional tables ####
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 
-### Make table for presentation:
-
-presentation <- select(data, one_of("age", "sex",wealth.vars))
-presentation$female <- as.numeric(presentation$sex) -1
-presentation <- presentation[,c("age", "female",wealth.vars)]
-stargazer(presentation, out = "summarywealth.tex", notes = "SOEPv36 - TopW Data; Author's calculations")
-
-
+### Make additional tables for Thesis:
 wealth.descr <- select(wealth.comp, one_of(wealth.vars, filters))
-stargazer(mat, out = "summarywealth.tex", notes = "SOEPv36 - Sample $P_{\text{beta}}$; Author's calculations", summary.stat = c("n", "mean", "sd", "min", "max"))
 
 mat <- cbind(table(wealth.descr$owner),table(wealth.descr$owner)/nrow(wealth.descr)*100)
 mis <- c(nrow(filter(wealth.descr, owner == 1)) - sum(is.na(wealth.descr$residence_value)), sum(is.na(wealth.descr$residence_value))/nrow(filter(wealth.descr, owner == 1))*100)
