@@ -1,10 +1,12 @@
-##### Bayesian Network #####
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
+                          ##### Bayesian Networks #####
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 
 rm(list = ls())
 source("packages.R")
-#source(".path.R")
+source(".path.R")
 source("functions.R")
-mypath<- "/soep/kgoebler/data"
+#mypath<- "/soep/kgoebler/data"
 mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
 
 # first impute filter information and then based on these impute wealth components:
@@ -60,8 +62,9 @@ mydata <- mydata %>%
          ost                             = factor(ost),
          hhgr                            = factor(hhgr, ordered = T))
 
-
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 ###### Preparing Monte Carlo Study #####
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 
 ### subsetting useful variables:
 # omit "schoolingF", "schoolingM", "trainingF", "trainingM"
@@ -178,7 +181,11 @@ lnrecode.vars <- c("lnresidence", "lnestate", "lnassets", "lnbuilding", "lnlife"
 
 rerecode.vars <- c(wealth.vars, "jobduration", "workinghours", "wage_gross_m", "wage_net_m", "saving_value", "total_inheritance")
 
-###### Truth comes here ########
+
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
+                  ###### Generate the Truth  ########
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
+
 truth <- multiple.imp
 for (i in 1:length(lnrecode.vars)){
   truth[,lnrecode.vars[i]] <- ifelse(is.na(truth[,lnrecode.vars[i]]), 
@@ -198,8 +205,6 @@ truth.structure <- hc(truth[, -which(names(truth) == "pid")], whitelist = whitel
 bnplot <- ggnet2(truth.structure$arcs,
        arrow.size = 9, arrow.gap = 0.025, label = T)
 ggsave("truthstruct.pdf", plot = bnplot)
-###### truth done ######
-#### prepare simulation #####
 
 for (i in 1:length(lnrecode.vars)){
   multiple.imp[,lnrecode.vars[i]] <- ifelse(is.na(multiple.imp[,lnrecode.vars[i]]), 
@@ -439,7 +444,9 @@ lvl1.mice <- ks.list(data = mice.imp.complete)
 mcartable <- mcarlvltbl(missmech = "MCAR")
 martable <-  mcarlvltbl(missmech = "MAR")
 mnartable <- mcarlvltbl(missmech = "MNAR")
- 
+
+### Table for thesis body 
+
 stargazer(mcartable[1:36,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MCAR data",
            out = "level1mcar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
 
@@ -448,6 +455,18 @@ stargazer(martable[1:36,], title = "Comparison of BN algorithms and MICE recover
 
 stargazer(mnartable[1:36,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MNAR data",
           out = "level1mnar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
+
+### Appendix Tables: 
+
+stargazer(mcartable[37:57,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MCAR data on the remaining non-wealth-items",
+          out = "level1appendix_mcar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
+
+stargazer(martable[37:57,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MAR data on the remaining non-wealth-items",
+          out = "level1appendix_mar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
+
+stargazer(mnartable[37:57,], title = "Comparison of BN algorithms and MICE recovering the marginal continuous distributions with MNAR data on the remaining non-wealth-items",
+          out = "level1appendix_mnar.tex", colnames = T, notes = "Source: SOEP Sample $P_{\\text{beta}}$; Author's calculations. Mean of KS distances over 500 Monte Carlo draws. Monte Carlo Error in brackets and underneath the test power.")
+
 
 ####++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 ##### 1st. Levels of Statistical Consistency: discrete vars ####
@@ -560,11 +579,11 @@ ggsave("boxplot_level2.pdf")
 wealth.descr <- select(wealth.comp, one_of(wealth.vars, filters))
 
 mat <- cbind(table(wealth.descr$owner),table(wealth.descr$owner)/nrow(wealth.descr)*100)
-mis <- c(nrow(filter(wealth.descr, owner == 1)) - sum(is.na(wealth.descr$residence_value)), sum(is.na(wealth.descr$residence_value))/nrow(filter(wealth.descr, owner == 1))*100)
-mat <- rbind(mat,mis) 
-summar <- matrix(c(rep(NaN, 8), 
+mis <- c(NaN, sum(is.na(wealth.descr$residence_value))/nrow(filter(wealth.descr, owner == 1))*100)
+mat <- cbind(mat,mis) 
+summar <- matrix(c(rep(NaN, 4), 
                  mean(filter(wealth.descr, owner == 1)$residence_value, na.rm = T), sd(filter(wealth.descr, owner == 1)$residence_value, na.rm = T), min(filter(wealth.descr, owner == 1)$residence_value, na.rm = T), max(filter(wealth.descr, owner == 1)$residence_value, na.rm = T)),
-                 nrow = 3, ncol = 4, byrow = T)/1000
+                 nrow = 2, ncol = 4, byrow = T)/1000
 mat.d <- cbind(mat,summar)
 
 for (i in 2:12){
@@ -572,30 +591,104 @@ for (i in 2:12){
   if (nrow(mat.f)==3){
     mat.f <- cbind(c(nrow(wealth.descr[wealth.descr[,filters[i]] != 1,]),nrow(wealth.descr[wealth.descr[,filters[i]] == 1,])), c(nrow(wealth.descr[wealth.descr[,filters[i]] != 1,])/nrow(wealth.descr)*100, nrow(wealth.descr[wealth.descr[,filters[i]] == 1,])/nrow(wealth.descr)*100))
   }
-  mis.f <- c(nrow(wealth.descr[wealth.descr[,filters[i]] == 1,]) -sum(is.na(wealth.descr[,wealth.vars[i]])), sum(is.na(wealth.descr[,wealth.vars[i]]))/nrow(wealth.descr[wealth.descr[,filters[i]] == 1,])*100)
-  mat.f <- rbind(mat.f,mis.f)
-  summar.f <- matrix(c(rep(NaN, 8), 
+  mis.f <- c(NaN, sum(is.na(wealth.descr[,wealth.vars[i]]))/nrow(wealth.descr[wealth.descr[,filters[i]] == 1,])*100)
+  mat.f <- cbind(mat.f,mis.f)
+  summar.f <- matrix(c(rep(NaN, 4), 
                      mean(wealth.descr[wealth.descr[,filters[i]] == 1,][,wealth.vars[i]], na.rm = T), sd(wealth.descr[wealth.descr[,filters[i]] == 1,][,wealth.vars[i]], na.rm = T), min(wealth.descr[wealth.descr[,filters[i]] == 1,][,wealth.vars[i]], na.rm = T), max(wealth.descr[wealth.descr[,filters[i]] == 1,][,wealth.vars[i]], na.rm = T)),
-                     nrow = 3, ncol = 4, byrow = T)/1000
+                     nrow = 2, ncol = 4, byrow = T)/1000
   mat.df <- cbind(mat.f,summar.f)
   mat.d <- rbind(mat.d,mat.df)
 }
 
-colnames(mat.d) <- c("N", "Share (in %)", "Mean", "St. Dev.", "Min", "Max")
-rownames(mat.d) <- c(rep(c("n/appl.", "appl.", "-#miss."),12))
+colnames(mat.d) <- c("N", "Share (in %)", "Miss Share in (in %)", "Mean", "St. Dev.", "Min", "Max")
+rownames(mat.d) <- c(rep(c("n/appl.", "appl."),12))
 
 stargazer(mat.d, out = "summarywealth.tex", label = "descr", digits=1, title = "The twelve asset and debt components in 1,000€ as surveyed in the wealth module" , notes = "SOEPv36 - Sample $P_{\\text{beta}}$; Author's calculations")
 
+#### Remaining Variables ####
+
+### continuous variables
+remaining.cont <- c("age", "orbis_wealth", "jobduration", "workinghours", "wage_gross_m", "wage_net_m", "sqmtrs", "hhnetto", "saving_value", "total_inheritance")
+remaining.descr <- select(data, one_of(remaining.cont))
+
+mat1 <- cbind(length(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] == -2 & !is.na(remaining.descr[remaining.cont[1]])]),length(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] == -2 & !is.na(remaining.descr[remaining.cont[1]])])/nrow(remaining.descr)*100)
+mat2 <- cbind(length(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] != -2]),length(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] != -2])/nrow(remaining.descr)*100)
+mat <- rbind(mat1,mat2)
+
+mis <- c(NaN, sum(is.na(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] != -2]))/length(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] != -2])*100)
+mat <- cbind(mat,mis) 
+
+summar <- matrix(c(rep(NaN, 4), 
+                 mean(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] != -2], na.rm = T), sd(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] != -2], na.rm = T), min(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] != -2], na.rm = T), max(remaining.descr[,remaining.cont[1]][remaining.descr[remaining.cont[1]] != -2], na.rm = T)),
+                 nrow = 2, ncol = 4, byrow = T)
+mat.remain <- cbind(mat,summar)
 
 
+for (i in 2:10){
+  mat1 <- cbind(length(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] == -2 & !is.na(remaining.descr[remaining.cont[i]])]),length(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] == -2 & !is.na(remaining.descr[remaining.cont[i]])])/nrow(remaining.descr)*100)
+  mat2 <- cbind(length(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] != -2]),length(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] != -2])/nrow(remaining.descr)*100)
+  mat <- rbind(mat1,mat2)
+  
+  mis <- c(NaN, sum(is.na(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] != -2]))/length(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] != -2])*100)
+  mat <- cbind(mat,mis) 
+  
+  summar <- matrix(c(rep(NaN, 4), 
+                     mean(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] != -2], na.rm = T), sd(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] != -2], na.rm = T), min(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] != -2], na.rm = T), max(remaining.descr[,remaining.cont[i]][remaining.descr[remaining.cont[i]] != -2], na.rm = T)),
+                   nrow = 2, ncol = 4, byrow = T)
+  mat.r <- cbind(mat,summar)
+  mat.remain <- rbind(mat.remain,mat.r)
+}
+
+colnames(mat.remain) <- c("N", "Share (in %)", "Miss Share in (in %)", "Mean", "St. Dev.", "Min", "Max")
+rownames(mat.remain) <- c(rep(c("n/appl.", "appl."),10))
+
+#jobduration n/appl are partial retirement with zero hours, social year individuals and non-employed
+# while for wage non-applicables its only social year and non-employed
+
+stargazer(mat.remain, out = "summaryremain.tex", label = "remaindescr", digits=1, title = "Descriptives of the remaining continuous variables in Sample $P_{\\text{beta}}$" , notes = "SOEPv36 - Sample $P_{\\text{beta}}$; Author's calculations")
 
 
+### discrete variables
+remaining.discrete.vars <- setdiff(names(data),c(remaining.cont, wealth.vars, filters, "pid", "inherit_filter", "saving", "bula", "bik", "ggk", "hhtyp"))
+remaining.discrete <- select(data, one_of(remaining.discrete.vars))
 
+tab <- rbind(rep(NaN,2),cbind(table(remaining.discrete[,remaining.discrete.vars[1]])/nrow(remaining.discrete)*100, c(sum(is.na(remaining.discrete[,remaining.discrete.vars[1]]))/nrow(remaining.discrete)*100,rep(NaN, nlevels(remaining.discrete[,remaining.discrete.vars[1]]) -1))))
 
+for (i in 2:length(remaining.discrete.vars)){
+  tab.loop <- rbind(rep(NaN,2),cbind(table(remaining.discrete[,remaining.discrete.vars[i]])/nrow(remaining.discrete)*100, c(sum(is.na(remaining.discrete[,remaining.discrete.vars[i]]))/nrow(remaining.discrete)*100,rep(NaN, nlevels(remaining.discrete[,remaining.discrete.vars[i]]) -1))))
+  tab <- rbind(tab,tab.loop)
+}
 
+colnames(tab) <- c("Share (in %)", "Missing Share (in %)")
 
+varlables <- c("Sex","Male","Female",
+               "West/East", "West","East",
+               "House type", "Agricultural dwelling", "Freestanding dwelling", "Terraced house", "Small residential build.", "Medium residential build.", "Large residential build.", "High-rise building",
+               "House condition", "Excellent", "Good", "Partly dilapidated", "Dilapidated",
+               "Safety of residential area", "Very safe", "Safe", "Less safe", "Somewhat dangerous",
+               "Number of household members", "1","2","3","4","5","6","7",
+               "Training on the job (in 2018)", "No", "Yes",
+               "Labor market status", "Full time employed", "Part time employed", "Traineeship", "Marginal employment", "Partial retirement", "Social year", "Non-employed",
+               "Education required for job", "Not applicable", "None", "Vocational training", "Technical college", "Higher education",
+               "Self-employment", "Not applicable", "No", "Yes",
+               "Company size", "Not applicable", "Small", "Medium", "Large",
+               "Superior", "Not applicable", "No", "Yes",
+               "Overtime", "Not applicable", "Yes", "No", "No, b/c self-emnployment",
+               "Secondary emplyoment", "No", "Yes",
+               "German citizenship", "No", "Yes",
+               "Marital status", "Single, never married", "Married/Life partnership", "Divorced", "Widowed",
+               "Born in Germany", "No", "Yes", 
+               "Education", "No completion", "Lower secondary", "Upper secondary", "Tertiary or higher",
+               "Number of kids", "No kids", "1 kid", "2 kids", "3 or more kids",
+               "Steady partner", "No", "Yes", 
+               "Residential area", "Area with old buildings", "Area with new buildings", "Mixture of old and new buildings", "Commercial center", "Industrial area",
+               "Kids under 16 in HH", "No", "Yes")
 
+rownames(tab) <- varlables
 
+stargazer(tab, out = "summarydiscrete.tex", label = "remaindiscrete", digits=2, title = "Descriptives of the remaining discrete variables in Sample $P_{\\text{beta}}$" , notes = "SOEPv36 - Sample $P_{\\text{beta}}$; Author's calculations")
+
+####++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#####
 
 
 
