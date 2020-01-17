@@ -6,7 +6,7 @@ source("packages.R")
 source(".path.R")
 source("functions.R")
 #mypath<- "/soep/kgoebler/data"
-mydata <- import(paste(mypath, "topwealth_cleaned.dta", sep = "/"))
+mydata <- import(paste(path, "topwealth_cleaned.dta", sep = "/"))
 set.seed(12)
 
 #potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
@@ -247,7 +247,7 @@ mi.structure <- bnlearn::structural.em(mi.multiple.imp[,names(mi.multiple.imp) !
 
 bn <-  bn.fit(mi.structure$dag, mi.structure$imputed, method = "mle")
 
-bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 150, returnfull = T)
+bnrc <- bnrc.nomean(bn=bn, data=mi.multiple.imp, cnt.break = 150, returnfull = T)
 
 bnimp <- bn.parents.imp(bn=bn, dag=mi.structure$dag, dat = mi.multiple.imp)
 
@@ -274,14 +274,17 @@ final.log$sqmtrs <- ifelse(is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs, 
                            multiple.imp$sqmtrs) 
 
 final.log[,c(wealth.limits, lnrecode.vars, "lnhhnetto", "lnsqmtrs")] <- NULL
-library(hablar)
+
 final.log <- final.log %>% 
   mutate(owner_perc = as_reliable_num(owner_perc),
          other_estate_perc = as_reliable_num(other_estate_perc),
          assets_perc = as_reliable_num(assets_perc))
 
+print("Imputation Done, No errors detected")
+
+
 save(final.log, file = "topw_imp.RDA")
-write.dta(final.log, file = "topw_imp.dta")
+foreign::write.dta(final.log, file = "topw_imp.dta")
 
 
 
