@@ -202,9 +202,21 @@ whitelist <- as.data.frame(cbind(from,to))
 
 
 truth.structure <- hc(truth[, -which(names(truth) == "pid")], whitelist = whitelist, score = "bic-cg")
+vertexlabels <- paste("X",1:62, sep = "")
+
 bnplot <- ggnet2(truth.structure$arcs,
-       arrow.size = 9, arrow.gap = 0.025, label = T)
+                 arrow.size = 7, arrow.gap = 0.027, node.size = 12.9)
+original.names <- bnplot$data$label
+
+bnplot <- ggnet2(truth.structure$arcs,
+       arrow.size = 7, arrow.gap = 0.027, label = vertexlabels, node.size = 12.9)
+
 ggsave("truthstruct.pdf", plot = bnplot)
+
+explanation <- cbind(vertexlabels,original.names)
+
+stargazer(explanation, out = "vertexnames.tex", label = "vertex", digits=2, title = "Naming conventions of vertices in the \\textit{true} DAG learned on Sample $P_{\\text{beta}}$")
+
 
 for (i in 1:length(lnrecode.vars)){
   multiple.imp[,lnrecode.vars[i]] <- ifelse(is.na(multiple.imp[,lnrecode.vars[i]]), 
