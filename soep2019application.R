@@ -239,9 +239,16 @@ bnplot <- ggnet2(mi.structure$dag$arcs,
 
 bn <-  bn.fit(mi.structure$dag, mi.structure$imputed, method = "mle")
 
-#bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 150, returnfull = T)
+bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 15, returnfull = T)
 
 bnimp <- bn.parents.imp(bn=bn, dag=mi.structure$dag, dat = mi.multiple.imp)
+
+
+gg_miss_var(bnrc$finalData, show_pct = TRUE)
+
+ggplot(bnrc$finalData, aes(x=assets_perc)) + 
+  geom_density() +
+  scale_x_continuous(limits = c(0,1))
 
 #final.log <- bnrc$finalData
 
