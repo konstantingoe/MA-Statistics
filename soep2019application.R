@@ -239,54 +239,52 @@ bnplot <- ggnet2(mi.structure$dag$arcs,
 
 bn <-  bn.fit(mi.structure$dag, mi.structure$imputed, method = "mle")
 
-bnrc <- bnrc.imp(bn=bn, data=mi.multiple.imp, cnt.break = 15, returnfull = T)
+bnrc <- bnrc.nomean(bn=bn, data=mi.multiple.imp, cnt.break = 2, returnfull = T)
 
 bnimp <- bn.parents.imp(bn=bn, dag=mi.structure$dag, dat = mi.multiple.imp)
 
-
 gg_miss_var(bnrc$finalData, show_pct = TRUE)
 
-ggplot(bnrc$finalData, aes(x=assets_perc)) + 
-  geom_density() +
-  scale_x_continuous(limits = c(0,1))
-
 #final.log <- bnrc$finalData
+# choose imputation method:
+
+chooseimp <- bnrc$finalData 
 
 #### rerecode of log vars
 
 conditions <- c(filters, "jobduration", "workinghours", "wage_gross_m", "inheritance_dummy", filter.2017) 
 
 for (i in 1:length(lnrecode.vars)){
-  bnimp[,rerecode.vars[i]] <-  ifelse(is.na(multiple.imp[,rerecode.vars[i]]), 
-                                      (sd(multiple.imp[,rerecode.vars[i]], na.rm = T)^bnimp[,lnrecode.vars[i]]) * mean(multiple.imp[,rerecode.vars[i]], na.rm = T), 
+  chooseimp[,rerecode.vars[i]] <-  ifelse(is.na(multiple.imp[,rerecode.vars[i]]), 
+                                      (sd(multiple.imp[,rerecode.vars[i]], na.rm = T)^chooseimp[,lnrecode.vars[i]]) * mean(multiple.imp[,rerecode.vars[i]], na.rm = T), 
                                         multiple.imp[,rerecode.vars[i]])
 }
 
 for (i in 1:length(rerecode.vars)){
-  bnimp[,rerecode.vars[i]] <-  ifelse(multiple.imp[,conditions[i]] == 0 & !is.na(multiple.imp[,conditions[i]]), -2, bnimp[,rerecode.vars[i]])
+  chooseimp[,rerecode.vars[i]] <-  ifelse(multiple.imp[,conditions[i]] == 0 & !is.na(multiple.imp[,conditions[i]]), -2, chooseimp[,rerecode.vars[i]])
 }
 
 # those ln without conditions:
 
-bnimp$hhnetto <- ifelse(is.na(multiple.imp$hhnetto), (sd(multiple.imp$hhnetto, na.rm = T)^bnimp$lnhhnetto) * mean(multiple.imp$hhnetto, na.rm = T),
+chooseimp$hhnetto <- ifelse(is.na(multiple.imp$hhnetto), (sd(multiple.imp$hhnetto, na.rm = T)^chooseimp$lnhhnetto) * mean(multiple.imp$hhnetto, na.rm = T),
                             multiple.imp$hhnetto)
 
-bnimp$sqmtrs <- ifelse(is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs, na.rm = T)^bnimp$lnsqmtrs) * mean(multiple.imp$sqmtrs, na.rm = T),
+chooseimp$sqmtrs <- ifelse(is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs, na.rm = T)^chooseimp$lnsqmtrs) * mean(multiple.imp$sqmtrs, na.rm = T),
                            multiple.imp$sqmtrs) 
 
-bnimp[,c(wealth.limits, lnrecode.vars, "lnhhnetto", "lnsqmtrs")] <- NULL
+chooseimp[,c(wealth.limits, lnrecode.vars, "lnhhnetto", "lnsqmtrs")] <- NULL
 
 for (i in 1:length(wealth.perc)){
-  bnimp[,wealth.perc[i]] <- ifelse(bnimp[,wealth.perc[i]] > 1, 1, bnimp[,wealth.perc[i]])
+  chooseimp[,wealth.perc[i]] <- ifelse(chooseimp[,wealth.perc[i]] > 1, 1, chooseimp[,wealth.perc[i]])
 }
 
-bnimp <- bnimp %>% 
+chooseimp <- chooseimp %>% 
   mutate(owner_perc = as_reliable_num(owner_perc),
          other_estate_perc = as_reliable_num(other_estate_perc),
          assets_perc = as_reliable_num(assets_perc))
 
-save(bnimp, file = "topw_imp.RDA")
-write.dta(bnimp, file = "topw_imp.dta")
+save(chooseimp, file = "topw_imp.RDA")
+foreign::write.dta(chooseimp, file = "topw_imp.dta")
 
 
 
