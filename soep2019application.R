@@ -1,12 +1,11 @@
 ##### Bayesian Network #####
 
-##### Testing MAR ######
 rm(list = ls())
 source("packages.R")
 source(".path.R")
 source("functions.R")
 #mypath<- "/soep/kgoebler/data"
-mydata <- import(paste(mypath, "SC19_ImputationReadySample.dta", sep = "/"))
+mydata <- import(paste(path, "SC19_ImputationReady.dta", sep = "/"))
 set.seed(12)
 
 #potentially <- set_na(mydata$residence_debt_filter, na =c("Does not apply" = -2), as.tag = T)
@@ -230,7 +229,7 @@ numCores <- detectCores() -1
 plan(multisession, workers = numCores)
 
 mi.structure <- bnlearn::structural.em(mi.multiple.imp[,names(mi.multiple.imp) != "pid"], maximize = "hc", maximize.args = list(score = "bic-cg", restart = 0, whitelist = whitelist), 
-                                       fit = "mle", impute = "bayes-lw", max.iter = 10, return.all = T, debug = F)
+                                       fit = "mle", fit.args = list(replace.unidentifiable = T), impute = "bayes-lw", max.iter = 10, return.all = T, debug = F)
 
 vertexlabels <- paste("X",1:(ncol(mi.multiple.imp) -1), sep = "")
 bnplot <- ggnet2(mi.structure$dag$arcs,
@@ -239,7 +238,7 @@ bnplot <- ggnet2(mi.structure$dag$arcs,
 
 bn <-  bn.fit(mi.structure$dag, mi.structure$imputed, method = "mle")
 
-bnrc <- bnrc.nomean(bn=bn, data=mi.multiple.imp, cnt.break = 2, returnfull = T)
+bnrc <- bnrc.nomean(bn=bn, data=mi.multiple.imp, cnt.break = 15, returnfull = T)
 
 bnimp <- bn.parents.imp(bn=bn, dag=mi.structure$dag, dat = mi.multiple.imp)
 
