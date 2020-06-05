@@ -381,6 +381,7 @@ bn.parents.imp <- function(bn=bn, dag=dag, dat=dat){
 
 bnrc.nomean <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE){
   # prepare
+  dat <- data
   original <- dat
   rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
   reliability <- rel_label$pct_miss

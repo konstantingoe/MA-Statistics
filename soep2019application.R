@@ -66,13 +66,13 @@ for (i in 1:length(impflags)){
 
 mydata$firstsample <- ifelse(mydata$p10000_2017 == -2, 1,0)
 
-varsfrom2017 <- names(select(mydata, contains("2017")))
+varsfrom2017 <- names(dplyr::select(mydata, contains("2017")))
 
 mydata[mydata$firstsample == 1,varsfrom2017] <- NA
 
-mydata <- select(mydata, -c(impflags, "firstsample"))
+mydata <- dplyr::select(mydata, -all_of(c(impflags, "firstsample")))
 
-varsfrom2017 <- names(select(mydata, contains("2017")))
+varsfrom2017 <- names(dplyr::select(mydata, contains("2017")))
 
 mydata <- droplevels(mydata)
 
@@ -221,7 +221,7 @@ whitelist <- as.data.frame(cbind(from,to))
 
 
 mi.multiple.imp <- multiple.imp
-mi.multiple.imp <- select(mi.multiple.imp, -c(recode.vars, "sqmtrs", "hhnetto"))
+mi.multiple.imp <- dplyr::select(mi.multiple.imp, -all_of(c(recode.vars, "sqmtrs", "hhnetto")))
 
 gg_miss_var(mi.multiple.imp, show_pct = TRUE)
 

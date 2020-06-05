@@ -309,7 +309,7 @@ bn.parents.imp <- function(bn=bn, dag=dag, dat=dat){
 
 bnrc.nomean <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TRUE){
   # prepare
-  dat <- mi.multiple.imp
+  dat <- data
   original <- dat
   rel_label <- miss_var_summary(dat[,names(dat) != "pid"], order = T)
   reliability <- rel_label$pct_miss
@@ -355,7 +355,7 @@ bnrc.nomean <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TR
       }
     }
     
-    if (any(apply(sapply(seq_along(test), function(t) test[[t]][[1]]==-2), 2, sum) == length(test[[1]][[1]])) & is.factor(dat[,names(reliability[i])])){
+    if (any(apply(sapply(seq_along(test), function(t) test[[t]][[1]]==-2), 2, sum, na.rm = T) == length(test[[1]][[1]])) & is.factor(dat[,names(reliability[i])])){
       positions <- which(sapply(seq_along(test), function(t) length(unique(test[[t]][[1]])) == 1 | length(test[[t]][[1]]) == 0) == T)
       indices <- setdiff(seq_along(test) ,positions)
       testsample <- factor(rep(levels(test[[1]][[1]])[1], length(test)), ordered = T, levels = levels(test[[1]][[1]]))
@@ -415,7 +415,7 @@ bnrc.nomean <- function(bn=bn, data=data, cnt.break = cnt.break, returnfull = TR
           test[[test.nan[t]]] <- bnlearn::cpdist(bn, nodes = names(reliability)[i], evidence = TRUE, method = "lw")
         }
       }
-      if (any(apply(sapply(seq_along(test), function(t) test[[t]][[1]]==-2), 2, sum) == length(test[[1]][[1]])) & is.factor(dat[,names(reliability[i])])){
+      if (any(apply(sapply(seq_along(test), function(t) test[[t]][[1]]==-2), 2, sum, na.rm = T) == length(test[[1]][[1]])) & is.factor(dat[,names(reliability[i])])){
         positions <- which(sapply(seq_along(test), function(t) length(unique(test[[t]][[1]])) == 1 | length(test[[t]][[1]]) == 0) == T)
         indices <- setdiff(seq_along(test) ,positions)
         testsample <- factor(rep(levels(test[[1]][[1]])[1], length(test)), ordered = T, levels = levels(test[[1]][[1]]))
