@@ -282,8 +282,8 @@ chooseimp <- chooseimp %>%
          other_estate_perc = as_reliable_num(other_estate_perc),
          assets_perc = as_reliable_num(assets_perc))
 
-save(chooseimp, file = "topw_imp.RDA")
-foreign::write.dta(chooseimp, file = "topw_imp.dta")
+save(chooseimp, file = "sc19_imputed.RDA")
+foreign::write.dta(chooseimp, file = "sc19imputed.dta")
 
 
 
