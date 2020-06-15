@@ -249,6 +249,20 @@ gg_miss_var(bnrc$finalData, show_pct = TRUE)
 
 chooseimp <- bnrc$finalData 
 
+chooseimp <- chooseimp %>% 
+  mutate(residence_value_impflag = factor(ifelse(is.na(mi.multiple.imp$lnresidence),1,0), ordered = F),
+         other_estate_impflag = factor(ifelse(is.na(mi.multiple.imp$lnestate),1,0), ordered = F),
+         assets_impflag = factor(ifelse(is.na(mi.multiple.imp$lnassets),1,0), ordered = F),
+         building_impflag = factor(ifelse(is.na(mi.multiple.imp$lnbuilding),1,0), ordered = F),
+         lifeinsure_impflag = factor(ifelse(is.na(mi.multiple.imp$lnlife),1,0), ordered = F),
+         business_impflag = factor(ifelse(is.na(mi.multiple.imp$lnbusiness),1,0), ordered = F),
+         vehicles_impflag = factor(ifelse(is.na(mi.multiple.imp$lnvehicles),1,0), ordered = F),
+         tangibles_impflag = factor(ifelse(is.na(mi.multiple.imp$lntangibles),1,0), ordered = F),
+         residence_debt_impflag = factor(ifelse(is.na(mi.multiple.imp$lnresidence_debt),1,0), ordered = F),
+         estate_debt_implag = factor(ifelse(is.na(mi.multiple.imp$lnestate_debt),1,0), ordered = F),
+         consumerdebt_impflag = factor(ifelse(is.na(mi.multiple.imp$lnconsumer_debt),1,0), ordered = F),
+         educationdebt_impflag = factor(ifelse(is.na(mi.multiple.imp$lnstudent_debt),1,0), ordered = F))
+
 #### rerecode of log vars
 
 conditions <- c(filters, "jobduration", "workinghours", "wage_gross_m", "inheritance_dummy", filter.2017) 
@@ -271,7 +285,8 @@ chooseimp$hhnetto <- ifelse(is.na(multiple.imp$hhnetto), (sd(multiple.imp$hhnett
 chooseimp$sqmtrs <- ifelse(is.na(multiple.imp$sqmtrs), (sd(multiple.imp$sqmtrs, na.rm = T)^chooseimp$lnsqmtrs) * mean(multiple.imp$sqmtrs, na.rm = T),
                            multiple.imp$sqmtrs) 
 
-chooseimp[,c(wealth.limits, lnrecode.vars, "lnhhnetto", "lnsqmtrs")] <- NULL
+#chooseimp[,c(wealth.limits, lnrecode.vars, "lnhhnetto", "lnsqmtrs")] <- NULL
+chooseimp[,c(lnrecode.vars, "lnhhnetto", "lnsqmtrs")] <- NULL
 
 for (i in 1:length(wealth.perc)){
   chooseimp[,wealth.perc[i]] <- ifelse(chooseimp[,wealth.perc[i]] > 1, 1, chooseimp[,wealth.perc[i]])
